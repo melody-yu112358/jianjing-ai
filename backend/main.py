@@ -10,6 +10,7 @@ from backend.api.sensor import router as sensor_router
 from backend.api.ppg import router as ppg_router
 from backend.models import DemoRequest, DemoStatus, FeedbackRequest, Frame
 from backend.session import DemoRuntime
+from backend.explainability import ExplainabilitySnapshot, snapshot
 
 
 def create_app(settings=None, sensor_settings=None) -> FastAPI:
@@ -36,6 +37,14 @@ def create_app(settings=None, sensor_settings=None) -> FastAPI:
     @app.get("/api/controller")
     async def controller_status():
         return app.state.demo.controller_status()
+
+    @app.get("/api/explainability", response_model=ExplainabilitySnapshot)
+    async def explainability():
+        return snapshot(app.state.demo.session)
+
+    @app.get("/api/schema/explainability")
+    async def explainability_schema():
+        return ExplainabilitySnapshot.model_json_schema()
 
     @app.get("/api/demo", response_model=DemoStatus)
     async def get_demo():

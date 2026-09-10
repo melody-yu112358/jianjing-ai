@@ -1,0 +1,240 @@
+{
+  "version": "1.0",
+  "session_id": "session-94815e05-f83a-42dd-bb6f-758d7f84db66",
+  "timestamp": 1700000039.0,
+  "session_second": 39,
+  "scope": "shared_process",
+  "self_report": "mind_racing",
+  "provenance": {
+    "data_source": "simulated",
+    "baseline_source": "simulated_demo_history",
+    "decision_source": "rule",
+    "explanation_source": "backend"
+  },
+  "baseline": {
+    "source": "simulated_demo_history",
+    "history": [
+      {
+        "session": 1,
+        "arousal": 0.49,
+        "stability": 0.63
+      },
+      {
+        "session": 2,
+        "arousal": 0.43,
+        "stability": 0.71
+      },
+      {
+        "session": 3,
+        "arousal": 0.48,
+        "stability": 0.65
+      },
+      {
+        "session": 4,
+        "arousal": 0.45,
+        "stability": 0.68
+      },
+      {
+        "session": 5,
+        "arousal": 0.47,
+        "stability": 0.66
+      },
+      {
+        "session": 6,
+        "arousal": 0.44,
+        "stability": 0.7
+      },
+      {
+        "session": 7,
+        "arousal": 0.46,
+        "stability": 0.66
+      }
+    ],
+    "arousal": 0.46,
+    "stability": 0.67
+  },
+  "session_signal_baseline": {
+    "heart_rate": 86.103,
+    "resp_rate": 15.995
+  },
+  "current_state": {
+    "arousal": 0.824,
+    "stability": 0.653,
+    "trend": "up",
+    "state_class": "not_responding",
+    "confidence": 0.827,
+    "reason_codes": [
+      "self_report_mind_racing",
+      "baseline_ready",
+      "rolling_trend_up",
+      "respiration_stable",
+      "no_improvement_after_intervention"
+    ]
+  },
+  "initial_state": {
+    "arousal": 0.78,
+    "stability": 0.68,
+    "trend": "flat",
+    "state_class": "activated",
+    "confidence": 0.42,
+    "reason_codes": [
+      "self_report_mind_racing",
+      "baseline_ready",
+      "trend_window_pending",
+      "respiration_stable",
+      "settling_criteria_not_met"
+    ]
+  },
+  "tonight_plan": {
+    "source": "controller_projection",
+    "initial_decision": {
+      "stage": "guided_breathing",
+      "action": "continue_breathing",
+      "inhale_sec": 4.0,
+      "exhale_sec": 6.0,
+      "visual_intensity": 0.707,
+      "audio_intensity": 0.707,
+      "message": "先不用努力睡着，只把呼气稍微拉长一点。",
+      "reason": "baseline_ready"
+    },
+    "reassessment_interval_sec": 30,
+    "conditional_note": "后续按状态重新判断：未趋稳时可换方式，趋稳后可减少刺激，满足退出条件后淡出。"
+  },
+  "decision_trace": {
+    "at": 39,
+    "observation": {
+      "heart_rate": 86.61,
+      "resp_rate": 16.64
+    },
+    "state": {
+      "arousal": 0.824,
+      "stability": 0.653,
+      "trend": "up",
+      "state_class": "not_responding",
+      "confidence": 0.827,
+      "reason_codes": [
+        "self_report_mind_racing",
+        "baseline_ready",
+        "rolling_trend_up",
+        "respiration_stable",
+        "no_improvement_after_intervention"
+      ]
+    },
+    "decision": {
+      "stage": "switch_method",
+      "action": "switch_to_grounding",
+      "inhale_sec": 0.0,
+      "exhale_sec": 0.0,
+      "visual_intensity": 0.478,
+      "audio_intensity": 0.478,
+      "message": "暂时没有明显变化，不必控制呼吸，把注意力轻轻放在周围的声音上。",
+      "reason": "no_improvement_after_intervention"
+    },
+    "decision_source": "rule",
+    "next_reassessment_sec": 69
+  },
+  "decision_history": [
+    {
+      "at": 0,
+      "observation": {
+        "heart_rate": 86.0,
+        "resp_rate": 16.0
+      },
+      "state": {
+        "arousal": 0.78,
+        "stability": 0.0,
+        "trend": "flat",
+        "state_class": "activated",
+        "confidence": 0.0,
+        "reason_codes": [
+          "self_report_mind_racing",
+          "baseline_pending"
+        ]
+      },
+      "decision": {
+        "stage": "assess",
+        "action": "switch_to_natural_breathing",
+        "inhale_sec": 0.0,
+        "exhale_sec": 0.0,
+        "visual_intensity": 0.707,
+        "audio_intensity": 0.707,
+        "message": "先照平常的方式呼吸，我们正在建立本次参考。",
+        "reason": "baseline_pending"
+      },
+      "decision_source": "rule",
+      "next_reassessment_sec": 1
+    },
+    {
+      "at": 9,
+      "observation": {
+        "heart_rate": 86.4,
+        "resp_rate": 15.73
+      },
+      "state": {
+        "arousal": 0.78,
+        "stability": 0.68,
+        "trend": "flat",
+        "state_class": "activated",
+        "confidence": 0.42,
+        "reason_codes": [
+          "self_report_mind_racing",
+          "baseline_ready",
+          "trend_window_pending",
+          "respiration_stable",
+          "settling_criteria_not_met"
+        ]
+      },
+      "decision": {
+        "stage": "guided_breathing",
+        "action": "continue_breathing",
+        "inhale_sec": 4.0,
+        "exhale_sec": 6.0,
+        "visual_intensity": 0.707,
+        "audio_intensity": 0.707,
+        "message": "先不用努力睡着，只把呼气稍微拉长一点。",
+        "reason": "baseline_ready"
+      },
+      "decision_source": "rule",
+      "next_reassessment_sec": 39
+    },
+    {
+      "at": 39,
+      "observation": {
+        "heart_rate": 86.61,
+        "resp_rate": 16.64
+      },
+      "state": {
+        "arousal": 0.824,
+        "stability": 0.653,
+        "trend": "up",
+        "state_class": "not_responding",
+        "confidence": 0.827,
+        "reason_codes": [
+          "self_report_mind_racing",
+          "baseline_ready",
+          "rolling_trend_up",
+          "respiration_stable",
+          "no_improvement_after_intervention"
+        ]
+      },
+      "decision": {
+        "stage": "switch_method",
+        "action": "switch_to_grounding",
+        "inhale_sec": 0.0,
+        "exhale_sec": 0.0,
+        "visual_intensity": 0.478,
+        "audio_intensity": 0.478,
+        "message": "暂时没有明显变化，不必控制呼吸，把注意力轻轻放在周围的声音上。",
+        "reason": "no_improvement_after_intervention"
+      },
+      "decision_source": "rule",
+      "next_reassessment_sec": 69
+    }
+  ],
+  "response": {
+    "arousal_delta": 0.044,
+    "stability_delta": -0.027,
+    "reference": "session_initial_state",
+    "observation_only": true
+  }
+}

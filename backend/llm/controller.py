@@ -5,6 +5,7 @@ import logging
 
 from backend.config import CONTROLLER_CONFIG
 from backend.llm.provider import ChatCompletionsProvider, LLMSettings
+from backend.llm.mock import MockLLMProvider
 from backend.llm.validation import parse_output
 from backend.models import RitualDecision
 from backend.ritual.controller import RitualController, RuleBasedController
@@ -22,6 +23,7 @@ class LLMController(RitualController):
         self.cached = None
         self.request_second = -config.decision_seconds
         self.last_source = "rule"
+        self.executed_source = "rule"
         self.last_error = None
         self.calls = self.successes = self.failures = 0
 
@@ -77,6 +79,8 @@ class LLMController(RitualController):
             return None
 
     def decide(self, state, context) -> RitualDecision:
+        # Execution provenance is separate from pending/fallback/safety diagnostics.
+        self.executed_source = "rule"
         ctx = context
         evidence = (state.confidence >= 0.65 and "disengagement_criteria_met" in state.reason_codes
                     and "stable_for_two_windows" in state.reason_codes)
@@ -117,7 +121,8 @@ class LLMController(RitualController):
             except ValueError:
                 self.cached = None
         if self.cached is not None:
-            self.last_source = "mock_llm" if self.settings.mode == "mock_llm" else "llm"
+            self.last_source = "mock_llm" if isinstance(self.provider, MockLLMProvider) else "llm"
+            self.executed_source = self.last_source
             return self.cached
         self.last_source = "pending" if self.task is not None else "fallback"
         return rule

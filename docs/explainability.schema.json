@@ -1,0 +1,539 @@
+{
+  "$defs": {
+    "Baseline": {
+      "additionalProperties": false,
+      "properties": {
+        "source": {
+          "const": "simulated_demo_history",
+          "default": "simulated_demo_history",
+          "title": "Source",
+          "type": "string"
+        },
+        "history": {
+          "items": {
+            "$ref": "#/$defs/HistoryPoint"
+          },
+          "title": "History",
+          "type": "array"
+        },
+        "arousal": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Arousal",
+          "type": "number"
+        },
+        "stability": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Stability",
+          "type": "number"
+        }
+      },
+      "required": [
+        "history",
+        "arousal",
+        "stability"
+      ],
+      "title": "Baseline",
+      "type": "object"
+    },
+    "HistoryPoint": {
+      "additionalProperties": false,
+      "properties": {
+        "session": {
+          "title": "Session",
+          "type": "integer"
+        },
+        "arousal": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Arousal",
+          "type": "number"
+        },
+        "stability": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Stability",
+          "type": "number"
+        }
+      },
+      "required": [
+        "session",
+        "arousal",
+        "stability"
+      ],
+      "title": "HistoryPoint",
+      "type": "object"
+    },
+    "Provenance": {
+      "additionalProperties": false,
+      "properties": {
+        "data_source": {
+          "enum": [
+            "simulated",
+            "mixed",
+            "sensor",
+            "unknown"
+          ],
+          "title": "Data Source",
+          "type": "string"
+        },
+        "baseline_source": {
+          "const": "simulated_demo_history",
+          "default": "simulated_demo_history",
+          "title": "Baseline Source",
+          "type": "string"
+        },
+        "decision_source": {
+          "anyOf": [
+            {
+              "enum": [
+                "rule",
+                "mock_llm",
+                "llm"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Decision Source"
+        },
+        "explanation_source": {
+          "default": "backend",
+          "enum": [
+            "backend",
+            "demo_fixture"
+          ],
+          "title": "Explanation Source",
+          "type": "string"
+        }
+      },
+      "required": [
+        "data_source",
+        "decision_source"
+      ],
+      "title": "Provenance",
+      "type": "object"
+    },
+    "Response": {
+      "additionalProperties": false,
+      "properties": {
+        "arousal_delta": {
+          "title": "Arousal Delta",
+          "type": "number"
+        },
+        "stability_delta": {
+          "title": "Stability Delta",
+          "type": "number"
+        },
+        "reference": {
+          "const": "session_initial_state",
+          "default": "session_initial_state",
+          "title": "Reference",
+          "type": "string"
+        },
+        "observation_only": {
+          "const": true,
+          "default": true,
+          "title": "Observation Only",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "arousal_delta",
+        "stability_delta"
+      ],
+      "title": "Response",
+      "type": "object"
+    },
+    "RitualDecision": {
+      "additionalProperties": false,
+      "description": "Identical validated result for every controller implementation.",
+      "properties": {
+        "stage": {
+          "enum": [
+            "assess",
+            "guided_breathing",
+            "settling",
+            "switch_method",
+            "fade_out",
+            "end"
+          ],
+          "title": "Stage",
+          "type": "string"
+        },
+        "action": {
+          "enum": [
+            "continue_breathing",
+            "slow_down",
+            "reduce_stimulation",
+            "switch_to_natural_breathing",
+            "switch_to_grounding",
+            "fade_out",
+            "end"
+          ],
+          "title": "Action",
+          "type": "string"
+        },
+        "inhale_sec": {
+          "minimum": 0,
+          "title": "Inhale Sec",
+          "type": "number"
+        },
+        "exhale_sec": {
+          "minimum": 0,
+          "title": "Exhale Sec",
+          "type": "number"
+        },
+        "visual_intensity": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Visual Intensity",
+          "type": "number"
+        },
+        "audio_intensity": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Audio Intensity",
+          "type": "number"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        },
+        "reason": {
+          "title": "Reason",
+          "type": "string"
+        }
+      },
+      "required": [
+        "stage",
+        "action",
+        "inhale_sec",
+        "exhale_sec",
+        "visual_intensity",
+        "audio_intensity",
+        "message",
+        "reason"
+      ],
+      "title": "RitualDecision",
+      "type": "object"
+    },
+    "Signals": {
+      "additionalProperties": false,
+      "properties": {
+        "heart_rate": {
+          "exclusiveMinimum": 0,
+          "title": "Heart Rate",
+          "type": "number"
+        },
+        "resp_rate": {
+          "exclusiveMinimum": 0,
+          "title": "Resp Rate",
+          "type": "number"
+        }
+      },
+      "required": [
+        "heart_rate",
+        "resp_rate"
+      ],
+      "title": "Signals",
+      "type": "object"
+    },
+    "State": {
+      "additionalProperties": false,
+      "properties": {
+        "arousal": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Arousal",
+          "type": "number"
+        },
+        "stability": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Stability",
+          "type": "number"
+        },
+        "trend": {
+          "enum": [
+            "up",
+            "down",
+            "flat"
+          ],
+          "title": "Trend",
+          "type": "string"
+        },
+        "state_class": {
+          "enum": [
+            "activated",
+            "settling",
+            "stable",
+            "not_responding",
+            "discomfort",
+            "ready_to_disengage"
+          ],
+          "title": "State Class",
+          "type": "string"
+        },
+        "confidence": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Confidence",
+          "type": "number"
+        },
+        "reason_codes": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Reason Codes",
+          "type": "array"
+        }
+      },
+      "required": [
+        "arousal",
+        "stability",
+        "trend",
+        "state_class",
+        "confidence",
+        "reason_codes"
+      ],
+      "title": "State",
+      "type": "object"
+    },
+    "TonightPlan": {
+      "additionalProperties": false,
+      "properties": {
+        "source": {
+          "default": "controller_projection",
+          "enum": [
+            "controller_projection",
+            "demo_fixture"
+          ],
+          "title": "Source",
+          "type": "string"
+        },
+        "initial_decision": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RitualDecision"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "reassessment_interval_sec": {
+          "title": "Reassessment Interval Sec",
+          "type": "integer"
+        },
+        "conditional_note": {
+          "default": "后续按状态重新判断：未趋稳时可换方式，趋稳后可减少刺激，满足退出条件后淡出。",
+          "title": "Conditional Note",
+          "type": "string"
+        }
+      },
+      "required": [
+        "initial_decision",
+        "reassessment_interval_sec"
+      ],
+      "title": "TonightPlan",
+      "type": "object"
+    },
+    "Trace": {
+      "additionalProperties": false,
+      "properties": {
+        "at": {
+          "minimum": 0,
+          "title": "At",
+          "type": "integer"
+        },
+        "observation": {
+          "$ref": "#/$defs/Signals"
+        },
+        "state": {
+          "$ref": "#/$defs/State"
+        },
+        "decision": {
+          "$ref": "#/$defs/RitualDecision"
+        },
+        "decision_source": {
+          "anyOf": [
+            {
+              "enum": [
+                "rule",
+                "mock_llm",
+                "llm"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Decision Source"
+        },
+        "next_reassessment_sec": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Next Reassessment Sec"
+        }
+      },
+      "required": [
+        "at",
+        "observation",
+        "state",
+        "decision",
+        "decision_source",
+        "next_reassessment_sec"
+      ],
+      "title": "Trace",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "version": {
+      "const": "1.0",
+      "default": "1.0",
+      "title": "Version",
+      "type": "string"
+    },
+    "session_id": {
+      "title": "Session Id",
+      "type": "string"
+    },
+    "timestamp": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Timestamp"
+    },
+    "session_second": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Session Second"
+    },
+    "scope": {
+      "default": "shared_process",
+      "enum": [
+        "shared_process",
+        "local_replay"
+      ],
+      "title": "Scope",
+      "type": "string"
+    },
+    "self_report": {
+      "enum": [
+        "mind_racing",
+        "body_tense",
+        "tired_but_awake",
+        "already_sleepy"
+      ],
+      "title": "Self Report",
+      "type": "string"
+    },
+    "provenance": {
+      "$ref": "#/$defs/Provenance"
+    },
+    "baseline": {
+      "$ref": "#/$defs/Baseline"
+    },
+    "session_signal_baseline": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Signals"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "current_state": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/State"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "initial_state": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/State"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "tonight_plan": {
+      "$ref": "#/$defs/TonightPlan"
+    },
+    "decision_trace": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Trace"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "decision_history": {
+      "items": {
+        "$ref": "#/$defs/Trace"
+      },
+      "title": "Decision History",
+      "type": "array"
+    },
+    "response": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Response"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "required": [
+    "session_id",
+    "timestamp",
+    "session_second",
+    "self_report",
+    "provenance",
+    "baseline",
+    "session_signal_baseline",
+    "current_state",
+    "initial_state",
+    "tonight_plan",
+    "decision_trace",
+    "decision_history",
+    "response"
+  ],
+  "title": "ExplainabilitySnapshot",
+  "type": "object"
+}

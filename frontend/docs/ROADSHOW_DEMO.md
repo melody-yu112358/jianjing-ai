@@ -1,36 +1,67 @@
-# 60 秒路演案例与验收
+# 60 秒路演案例与 Explainability v1
 
-## 本轮范围
+## 完整流程
 
-入口标明「模拟案例 · 决策回放」。不调用大模型、不采集历史数据、不新增心态选择。个人参考心率 72–80、呼吸频率 12–16 次/分均为案例预置值。实时后端模式不套用此参考带或预设决策。所有文字与曲线来自同一时间轴；不把案例结果解释为真实改善或入睡。
+1. 选择「脑子停不下来 / 身体紧绷 / 很累但还清醒 / 已经比较困」，默认 mind_racing。
+2. 点「查看今晚总览」：展示最近7次**模拟历史**（arousal 46%、stability 67%）与今晚案例、简短路径，再启用播放。
+3. 播放原有60秒故事；曲线、双层光丝、海浪、中文引导和解释窗口同步；可暂停、恢复、重置和重播。
+4. 结束为主动结束仪式，不表示检测到入睡或保证改善。
 
-## 时间线
+主流程不要求摄像头、PPG或Apple Watch。保留原有人工探索、后端连接与lab。
 
-| 秒 | 行为 |
+## 默认 mind_racing 黄金时间线
+
+| 秒 | 体验 / 解释 |
 |---|---|
-| 0 | 先观察；展示高于个人参考的两项读数 |
-| 8 | 给出一轮慢呼气、观察响应、再决定的短路径 |
-| 10–14 | 吸气，外层舒展 |
-| 14–20 | 呼气，外层回收；短暂下降后数据回升 |
-| 22 | 暂未趋稳；取消下一轮，改为海浪声音关注 |
-| 38 | 呼吸先放缓、心率随后下降；减少提示 |
-| 50 | 接近个人参考，跳过额外练习；结束语 |
-| 54–60 | 音画淡出；保留曲线与决策记录，不新增前后对比页 |
+| 开始前 | 近期模拟参考 → 今晚选择 → 总览 → 今晚短路径 |
+| 0–8 | 「不用急着睡着。先让呼吸自然来去。」观察连续变化，展示参考带 |
+| 8 | 预设计划说明展开；先一轮慢呼气，再观察并调整 |
+| 10–14 | 轻轻吸气，外层舒展，continue_breathing |
+| 14–20 | 缓缓呼气，外层回收；读数短暂下降后反弹 |
+| 20–22 | 退出固定节拍，重新观察；尚未证明稳定 |
+| 22 | switch_to_grounding：取消下一轮，改为海浪声音关注；明确不必追赶节拍 |
+| 38 | 后续趋稳，reduce_stimulation：保持声音关注，减少口令，不增加练习 |
+| 50 | reduce_stimulation：跳过额外练习，缩短后续安排；「已经够了。接下来不用再看我。」 |
+| 54–60 | fade_out → end，音画淡出，保留曲线与决策历史 |
 
-## 实现
+`body_tense` 降低初始 arousal、使用4/5秒吸呼及19秒退出节拍，22秒动作为 switch_to_natural_breathing。`tired_but_awake` 使用更低初始 arousal。`already_sleepy` 使用低唤醒、较稳定轨迹和自然呼吸，省去固定节拍与22秒换方法，不朗读吸呼口令。60秒黄金故事特指默认 mind_racing，其他自述不硬套“干预失败”的叙述。
 
-`lib/roadshow-demo.ts` 是预设数据、决定、阶段和语音节点的唯一来源。数据使用分段平滑插值与确定性小幅波动；不使用每次不同的随机噪声。`RoadshowReplay` 保留虚拟时间，重播创建新会话。仅已到达的曲线和决策节点显示，未来数据不提前揭示。
+## 三层来源
 
-`components/roadshow-insights.tsx` 展示同一时间轴的两条曲线、参考带、判断依据、短路径和已发生决策。实时接入时只显示已收到的曲线和引导，不冒充已取得完整解释。
+- `lib/roadshow-demo.ts`：原有确定性轨迹、控制消息、阶段与语音节点，支持自述变体。
+- `lib/roadshow-explainability.ts`：把预设案例适配为 `ExplainabilitySnapshot`，不用于判断 live sensor；分类与理由仍为 authored fixture，confidence 不计算。
+- `components/roadshow-insights.tsx`：只展示 Snapshot 与传入的曲线，不自己产生AI判断；backend与demo复用。
 
-`FilamentLife` 使用两套独立线条几何：内层束状流线，外层稀疏包络；外层呼吸阶段来自引导计时，不声称测得实际吸呼相位。切换方式后以平滑权重移除固定节拍。柔光后处理增强内部层次。
+个人 HR 72–80、respiration 12–16 参考带保留，仅 demo 显示。7次睡前状态历史同样是模拟值，固定 `baseline_source=simulated_demo_history`；不是真实用户数据库。DEMO `decision_source=null` 并明确标记「模拟案例 · 决策回放」。
 
-参考 parthsali/Breathing-App 的内外双层与计时开合方式：https://github.com/parthsali/Breathing-App/blob/main/src/components/BreathingSphere.tsx 。本轮为独立实现，未复制其源码或引入依赖。
+真实后端说明见 [Explainability Contract](../../docs/EXPLAINABILITY_INTERFACE.md)。真实 backend mode：`/ws/control` 驱动视觉，`/api/explainability` 提供State Engine与实际Controller解释。缺失或不匹配时显示暂无。v1仍兼容视觉，但完整解释配对要求v2 session_id。
 
-## 验证与手工验收
+连接区可只观察现有后端会话，也可用所选状态新建共享后端会话。后者通过现有 `POST /api/demo` 提交 self_report，already_sleepy 配对应已有场景，其他选择使用 calming 场景。后端既有判断窗口默认30秒、最长180秒，**不伪装成60秒回放**。
 
-自动检查覆盖 60 秒完整解析、短暂回升、暂停与恢复、跨节点更新、重播、无入睡事件、语音口令与策略一致、海浪越过原 40 秒结束点、双层几何独立与有限值。旧 40 秒与后端控制测试继续保留。
+## 视觉与声音
 
-手工：使用 Edge/Chrome，点击播放；在 12 秒暂停、恢复；22 秒以后不应再出现吸呼口令；暂停时曲线与声音均停止；60 秒声音停止、显示仪式完成；重播恢复最初参考和决策。检查小屏幕无裁切，以及关闭语音/静音后没有声音。
+保留内层状态光丝与外层呼吸包络、独立几何、柔光和自然流动。更换自述后会重建音频/朗读实例，避免重播“已经较困”仍残留上一个案例的吸呼口令。声音仍为 demo 使用；真实 backend 暂不自动朗读或接管海浪。固定节拍不是测得的实际吸呼相位。
 
-当前托管浏览器预览服务不可用。着色器可离屏编译核验，但不等于完整浏览器视觉验收；后处理观感、音色及设备帧率仍需实机验收。
+原参考：parthsali/Breathing-App 的内外双层计时思路。本轮未复制源码，未更换既有视觉实现。
+
+## 自动命令
+
+后端根目录：`python -m pytest -q`。
+
+frontend目录：
+
+```bash
+node --experimental-strip-types --test tests/*.test.ts
+node node_modules/typescript/bin/tsc --noEmit
+pnpm build
+```
+
+Node 22.13+、pnpm 11.19.0，沿用锁文件。云端使用既有 Sites 安装与build脚本；修复 `sites-env.sh / install-pnpm.sh / build-verified.sh` 的Git执行权限，避免全新clone后Permission denied。
+
+新增测试包括所有状态选择对应数据、baseline/计划、六项State字段、Decision Trace节点、22秒换方法、50秒减少刺激、54–60退出、60秒完整回放、暂停/恢复/重播、来源与会话边界、真实Python输出的跨端校验，以及复用React组件的实际渲染。
+
+## 尚未验证的浏览器/路演工作
+
+本次云端预览服务不可用，未完成真实浏览器E2E，不把服务器渲染或虚拟时间测试冒称浏览器验收。合并前请在Edge/Chrome实测：四种自述、总览/播放按钮、12秒暂停恢复、22秒后无吸呼口令、38/50秒减提示、54–60秒音画退出、重播切换较困案例、静音、中文音色、小屏幕与投屏排版。
+
+线上联调需验证WSS/HTTPS、实际origin的CORS配置、断线/跨会话reset、真实provider授权与网络。确认采用外部LLM成功后才讲“实时模型”；fallback必须讲规则执行。PPG、Apple Watch和真实历史数据库留作后续。
