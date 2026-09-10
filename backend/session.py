@@ -3,7 +3,8 @@ import time
 from dataclasses import replace
 
 from backend.models import DemoRequest, DemoStatus, Frame, Visual
-from backend.ritual.controller import ControllerContext, RitualController, RuleBasedController
+from backend.ritual.controller import ControllerContext, DecisionRecord, RitualController, RuleBasedController
+from backend.llm.provider import LLMSettings
 from backend.sensors.simulator import Simulator
 from backend.state.arousal import StateEngine, clamp
 
@@ -48,11 +49,15 @@ class Session:
         started = ctx.intervention_started
         if started is None and decision.stage in ("guided_breathing", "settling", "switch_method"):
             started = self.second
+        history = ctx.recent_decisions
+        if due or changed or decision.action != ctx.previous_action:
+            history = (*history, DecisionRecord(decision.action, state.state_class))[-3:]
         self.context = replace(ctx, stage=decision.stage,
             stage_started=self.second if changed else ctx.stage_started,
             last_decision=self.second if due else ctx.last_decision,
             fade_start_intensity=ctx.previous_visual_intensity if changed and decision.stage == "fade_out" else ctx.fade_start_intensity,
-            previous_visual_intensity=decision.visual_intensity, intervention_started=started)
+            previous_visual_intensity=decision.visual_intensity, intervention_started=started,
+            previous_action=decision.action, recent_decisions=history)
         return decision
 
     def stop_for_discomfort(self, timestamp: float) -> Frame:
@@ -70,12 +75,21 @@ class Session:
 
 
 class DemoRuntime:
-    def __init__(self):
+    def __init__(self, settings: LLMSettings | None = None):
+        self.settings = settings or LLMSettings.from_env()
         self.generation = 0
         self.reset(DemoRequest(scenario="calming"))
 
     def reset(self, config: DemoRequest) -> DemoStatus:
-        self.session = Session(config)
+        if hasattr(self, "session"):
+            self.cancel_pending()
+        controller = RuleBasedController()
+        if self.settings.mode != "rule":
+            from backend.llm.controller import LLMController
+            from backend.llm.mock import MockLLMProvider
+            controller = LLMController(settings=self.settings,
+                provider=MockLLMProvider() if self.settings.mode == "mock_llm" else None)
+        self.session = Session(config, controller)
         self.started_at: float | None = None
         self.generation += 1
         return self.status()
@@ -92,3 +106,13 @@ class DemoRuntime:
 
     def report_discomfort(self) -> Frame:
         return self.session.stop_for_discomfort(time.time())
+
+    def cancel_pending(self):
+        if hasattr(self.session.controller, "cancel"):
+            self.session.controller.cancel()
+
+    def controller_status(self):
+        controller = self.session.controller
+        return {"mode": self.settings.mode, "source": getattr(controller, "last_source", "rule"),
+                "calls": getattr(controller, "calls", 0), "successes": getattr(controller, "successes", 0),
+                "failures": getattr(controller, "failures", 0), "last_error": getattr(controller, "last_error", None)}

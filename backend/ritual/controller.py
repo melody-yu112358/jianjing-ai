@@ -1,10 +1,16 @@
-"""Pure controller interface: identical (state, context) gives identical decisions."""
+"""Shared controller interface and deterministic rule implementation."""
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
 from backend.config import CONTROLLER_CONFIG, ControllerConfig
-from backend.models import RitualDecision, SelfReport, Stage, State
+from backend.models import Action, RitualDecision, SelfReport, Stage, State, StateClass
 from backend.state.arousal import clamp
+
+
+@dataclass(frozen=True)
+class DecisionRecord:
+    action: Action
+    state_class: StateClass
 
 
 @dataclass(frozen=True)
@@ -18,6 +24,8 @@ class ControllerContext:
     fade_start_intensity: float = 0
     previous_visual_intensity: float = 0
     intervention_started: int | None = None
+    previous_action: Action | None = None
+    recent_decisions: tuple[DecisionRecord, ...] = ()
 
 
 class RitualController(ABC):
@@ -27,7 +35,7 @@ class RitualController(ABC):
 
     @abstractmethod
     def decide(self, state: State, context: ControllerContext) -> RitualDecision:
-        """Return a validated finite action; no network or mutable session state here."""
+        """Return a validated finite action using processed state and session context."""
 
 
 class RuleBasedController(RitualController):
@@ -105,7 +113,9 @@ class RuleBasedController(RitualController):
                               message=message, reason=reason)
 
 
-class LLMController(RitualController):
-    """Reserved extension point; deliberately unavailable, with no SDK/API calls."""
-    def decide(self, state: State, context: ControllerContext) -> RitualDecision:
-        raise NotImplementedError("LLMController is reserved; use RuleBasedController in this phase")
+def __getattr__(name):
+    # Preserve the Phase 2 import path without a circular dependency.
+    if name == "LLMController":
+        from backend.llm.controller import LLMController
+        return LLMController
+    raise AttributeError(name)

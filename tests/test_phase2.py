@@ -117,8 +117,9 @@ def test_controller_is_pure_reproducible_and_contract_is_shared(scenario):
     assert RitualDecision.model_validate_json(first.model_dump_json()) == first
     with pytest.raises(ValidationError):
         RitualDecision.model_validate({**first.model_dump(), "action": "medical_advice"})
-    with pytest.raises(NotImplementedError):
-        LLMController().decide(state, context)
+    # Phase 3 replaces the placeholder exception with a working safe fallback.
+    from backend.llm.provider import LLMSettings
+    assert LLMController(settings=LLMSettings()).decide(state, context) == first
     saved = json.loads((Path(__file__).parents[1] / "docs/ritual-decision.schema.json").read_text())
     assert RitualDecision.model_json_schema() == saved
 
