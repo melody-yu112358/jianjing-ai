@@ -5,6 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.api.websocket import router
+from backend.api.control import router as control_router
 from backend.models import DemoRequest, DemoStatus, FeedbackRequest, Frame
 from backend.session import DemoRuntime
 
@@ -22,6 +23,7 @@ def create_app(settings=None) -> FastAPI:
     app.add_middleware(CORSMiddleware, allow_origins=origins.split(","),
                        allow_methods=["GET", "POST"], allow_headers=["Content-Type"])
     app.include_router(router)
+    app.include_router(control_router)
 
     @app.get("/health")
     async def health():

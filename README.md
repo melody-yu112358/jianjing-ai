@@ -8,6 +8,8 @@ Python 3.11+ / FastAPI。Phase 3在第二阶段可解释状态分级基础上增
 
 ## 架构与职责
 
+Phase 3.5 新增独立 `/ws/control` v2.0，旧 `/ws/state` v1.1 保留。State Engine、分级及两种 Controller 决策逻辑不变。v2 接入说明见本文末尾。
+
 ```text
 Sensor / Simulator
        ↓
@@ -430,3 +432,109 @@ python scripts/test_phase3_live.py
 接入真实供应商后，可启动llm模式并运行`python scripts/test_ws.py --scenario not_responding --samples 70`，随后检查`GET /api/controller`中successes和source。messages、source与结构化结果共同用于确认真实调用；仅有持续帧或正常动画不能证明调用了模型。
 
 框架参考：[FastAPI WebSockets](https://fastapi.tiangolo.com/advanced/websockets/)。
+
+## Phase 3.5：Frontend Control Protocol v2
+
+```text
+Simulator → State Engine → State Classification → Hard Safety Rules
+                                                    ↓
+                                      Rule / LLM Controller
+                                                    ↓
+                                             RitualDecision
+                                              /          \
+                                   原有Frame v1.1    Visual Control Mapper
+                                          ↓                ↓
+                                     /ws/state       ControlFrame v2.0
+                                                           ↓
+                                                      /ws/control
+```
+
+| 接口 | 用途 | 消息形态 |
+|---|---|---|
+| `/ws/state` | 既有前端、Phase 1–3 调试与兼容 | 原Frame v1.1，顶层及子字段不变 |
+| `/ws/control` | 新前端直接执行完整视觉目标和引导 | `agent.control / 2.0`，带会话与序列号 |
+| `/ws/control?debug=false` | 不展示信号/状态仪表的控制流 | 省略payload.signals和payload.state，其余完整 |
+| `/api/schema/control` | 获取后端v2输出契约 | 与docs/agent-control-v2.schema.json一致 |
+
+两条WebSocket可同时连接，建立后立即发送，此后约1Hz，UTF-8 JSON完整快照，无订阅、ACK或JSON Patch。同一个连接不混发版本。默认v2保留模拟信号和三项状态指标；关闭debug时真正省略它们，不发送null或虚构零值。debug不是权限或隐私隔离机制。
+
+### 映射与艺术表达
+
+`backend/visual/mapper.py`只接收加工后的arousal/stability/trend/state_class、阶段和有限动作及呼吸时长；不读原始信号、不调用LLM，也不使用LLM给出的visual_intensity作为shader参数。相同输入及明确的淡出起点/进度得到相同输出。
+
+基础强度为`0.16 + 0.64 × arousal`，settling/switch_method或reduce_stimulation乘0.55，slow_down乘0.8；稳定程度控制噪声和湍动，下降趋势降低流动速度。呼吸引导偏向pulse，声音关注偏向ripple，低刺激阶段偏向serenity；高强度且不稳定的候选可使用storm或fold。选择组合考虑动作、阶段和连续数值，**不将state_class与模式一一绑定**。并非每条demo轨迹都会出现全部五种模式。
+
+除hue为0–360、transition_sec为0.1–15秒外，所有视觉数值均在0–1。`frequency`是纹理密度，**不是Hz**；`pulse`是收缩幅度，前端用guidance的inhale/exhale计算节拍。非guided_breathing阶段必须0/0，含义是自然呼吸。
+
+`backend/control/adapter.py`保存会话投影：每个模拟秒观察一次，在fade_out入口冻结上一帧完整视觉目标，然后按原控制器10秒淡出时长逐步缩小各能量参数，模式和色相保持。即使无人连接或只连接v1，重新接入v2也看到同一淡出进度，不重新开始。end/discomfort时intensity/noise/speed及其他能量参数归零；前端仍需按文档优先处理end并清除人工动画覆盖。transition_sec是前端平滑时间，本后端不实现GPU插值。
+
+visual是艺术化交互控制，不能解释为真实脑区活动、情绪诊断、入睡或生理改善的证据。预设模拟信号不受视觉选择反向驱动。
+
+### v2完整快照
+
+以下数值仅说明字段，timestamp实际使用当前UTC Unix秒：
+
+```json
+{
+  "type": "agent.control",
+  "version": "2.0",
+  "session_id": "session-e73f656c-15b0-426d-b0c7-c3070cf99e22",
+  "seq": 42,
+  "timestamp": 1789016400.125,
+  "data_source": "simulated",
+  "payload": {
+    "visual": {
+      "mode": "ripple", "intensity": 0.52, "noise": 0.24, "speed": 0.32,
+      "deformation": 0.56, "frequency": 0.46, "turbulence": 0.16,
+      "particle_density": 0.38, "particle_spread": 0.30,
+      "line_density": 0.48, "line_activity": 0.38,
+      "glow": 0.55, "pulse": 0.24, "hue": 193, "transition_sec": 2.5
+    },
+    "guidance": {
+      "text": "不用刻意用力，让呼气稍微长一点。",
+      "stage": "guided_breathing", "inhale_sec": 4, "exhale_sec": 6
+    },
+    "signals": {"heart_rate": 78, "resp_rate": 12},
+    "state": {"arousal": 0.5, "stability": 0.7, "trend": "down"}
+  }
+}
+```
+
+### 会话、顺序和前端连接
+
+每次POST /api/demo重置都会生成`session-<UUIDv4>`，同时清空v2计数与淡出起点；进程重启也生成新ID。同一共享会话内，v2每次发送前分配一个seq，从0开始递增，限定为JavaScript安全整数。v1读取不占用序号。多v2客户端共享计数，所以每条连接的seq可有间隔；发送失败也可能消耗一个序号。重连沿用当前会话计数，不从0重放。达到安全整数上限需重置，不循环复用。
+
+data_source枚举为simulated/sensor/mixed/unknown，当前适配器始终声明simulated。枚举为未来设备适配预留，不能通过demo配置冒充sensor。timestamp是每次推送的当前UTC秒，包括end后持续推送；前后端应同步时钟，前端会拒绝超过15秒的旧帧或未来超过5秒的帧。
+
+前端可将其已有AgentClient地址设置为`ws://127.0.0.1:8000/ws/control`。最小接收示例：
+
+```javascript
+const socket = new WebSocket('ws://127.0.0.1:8000/ws/control');
+socket.onmessage = ({data}) => {
+  const packet = JSON.parse(data);
+  // 正式前端使用自己的schema、session/seq顺序及时间戳校验。
+  console.log(packet.session_id, packet.seq, packet.payload.visual, packet.payload.guidance);
+};
+```
+
+本服务仍是单进程共享demo，需一个worker；不提供鉴权或公开多用户会话。REST CORS不是WebSocket身份校验。HTTPS前端使用团队WSS代理，本次未部署代理或测试目标浏览器渲染。
+
+### 联调与协议核验范围
+
+本次依据用户提供的`AGENT_INTERFACE.md` v2.0实现。收到的目录没有文档提到的`public/agent-control.schema.json`、`lib/agent-protocol.ts`或`examples/agent_mock.py`，因此未宣称与前端实际Zod/schema文件逐项比对。后端schema是完整输出快照契约：所有视觉字段均提供，比文档允许省略部分视觉参数的接收端要求更严格；含end归零与呼吸时长的跨字段约束。
+
+```bash
+python -m pytest -q
+# 已启动后端：仅接收，不重置
+python scripts/test_control_ws.py --samples 10
+# 重置到指定场景并打印会话/序列/模式/强度/阶段/引导
+python scripts/test_control_ws.py --scenario already_sleepy --samples 55
+# 自行启动三个独立本地服务，约90秒并行校验三场景
+python scripts/test_control_ws.py --local --quiet
+# 对已有服务串行校验三场景，约3分10秒，会重置共享会话
+python scripts/test_control_ws.py --verify --quiet
+# 获得前端schema后，对每帧追加前端契约校验
+python scripts/test_control_ws.py --local --quiet --frontend-schema /path/to/public/agent-control.schema.json
+```
+
+脚本需requirements-dev.txt中的jsonschema，仅为开发测试依赖；运行服务无新增依赖。真实网络测试逐帧校验schema、64KiB上限、UTC新鲜度、会话及递增序列，同时接收v1验证兼容，再检查重置、不适停止和debug=false。合成轨迹验证工程行为，不代表入睡效果。

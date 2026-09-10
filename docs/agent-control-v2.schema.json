@@ -1,0 +1,363 @@
+{
+  "$defs": {
+    "ControlPayload": {
+      "additionalProperties": false,
+      "properties": {
+        "visual": {
+          "$ref": "#/$defs/VisualControl"
+        },
+        "guidance": {
+          "$ref": "#/$defs/Guidance"
+        },
+        "signals": {
+          "$ref": "#/$defs/Signals"
+        },
+        "state": {
+          "$ref": "#/$defs/DebugState"
+        }
+      },
+      "required": [
+        "visual",
+        "guidance"
+      ],
+      "title": "ControlPayload",
+      "type": "object",
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "guidance": {
+                "properties": {
+                  "stage": {
+                    "const": "end"
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "visual": {
+                "properties": {
+                  "intensity": {
+                    "const": 0
+                  },
+                  "noise": {
+                    "const": 0
+                  },
+                  "speed": {
+                    "const": 0
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "DebugState": {
+      "additionalProperties": false,
+      "properties": {
+        "arousal": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Arousal",
+          "type": "number"
+        },
+        "stability": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Stability",
+          "type": "number"
+        },
+        "trend": {
+          "enum": [
+            "up",
+            "down",
+            "flat"
+          ],
+          "title": "Trend",
+          "type": "string"
+        }
+      },
+      "required": [
+        "arousal",
+        "stability",
+        "trend"
+      ],
+      "title": "DebugState",
+      "type": "object"
+    },
+    "Guidance": {
+      "additionalProperties": false,
+      "properties": {
+        "text": {
+          "maxLength": 4000,
+          "title": "Text",
+          "type": "string"
+        },
+        "stage": {
+          "enum": [
+            "assess",
+            "guided_breathing",
+            "settling",
+            "switch_method",
+            "fade_out",
+            "end"
+          ],
+          "title": "Stage",
+          "type": "string"
+        },
+        "inhale_sec": {
+          "maximum": 60,
+          "minimum": 0,
+          "title": "Inhale Sec",
+          "type": "number"
+        },
+        "exhale_sec": {
+          "maximum": 60,
+          "minimum": 0,
+          "title": "Exhale Sec",
+          "type": "number"
+        }
+      },
+      "required": [
+        "text",
+        "stage",
+        "inhale_sec",
+        "exhale_sec"
+      ],
+      "title": "Guidance",
+      "type": "object",
+      "allOf": [
+        {
+          "oneOf": [
+            {
+              "properties": {
+                "inhale_sec": {
+                  "const": 0
+                },
+                "exhale_sec": {
+                  "const": 0
+                }
+              }
+            },
+            {
+              "properties": {
+                "stage": {
+                  "const": "guided_breathing"
+                },
+                "inhale_sec": {
+                  "exclusiveMinimum": 0
+                },
+                "exhale_sec": {
+                  "exclusiveMinimum": 0
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "Signals": {
+      "additionalProperties": false,
+      "properties": {
+        "heart_rate": {
+          "exclusiveMinimum": 0,
+          "title": "Heart Rate",
+          "type": "number"
+        },
+        "resp_rate": {
+          "exclusiveMinimum": 0,
+          "title": "Resp Rate",
+          "type": "number"
+        }
+      },
+      "required": [
+        "heart_rate",
+        "resp_rate"
+      ],
+      "title": "Signals",
+      "type": "object"
+    },
+    "VisualControl": {
+      "additionalProperties": false,
+      "properties": {
+        "mode": {
+          "enum": [
+            "serenity",
+            "ripple",
+            "fold",
+            "storm",
+            "pulse"
+          ],
+          "title": "Mode",
+          "type": "string"
+        },
+        "intensity": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Intensity",
+          "type": "number"
+        },
+        "noise": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Noise",
+          "type": "number"
+        },
+        "speed": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Speed",
+          "type": "number"
+        },
+        "deformation": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Deformation",
+          "type": "number"
+        },
+        "frequency": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Frequency",
+          "type": "number"
+        },
+        "turbulence": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Turbulence",
+          "type": "number"
+        },
+        "particle_density": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Particle Density",
+          "type": "number"
+        },
+        "particle_spread": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Particle Spread",
+          "type": "number"
+        },
+        "line_density": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Line Density",
+          "type": "number"
+        },
+        "line_activity": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Line Activity",
+          "type": "number"
+        },
+        "glow": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Glow",
+          "type": "number"
+        },
+        "pulse": {
+          "description": "Amplitude, not frequency; guidance supplies breathing timing",
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Pulse",
+          "type": "number"
+        },
+        "hue": {
+          "maximum": 360,
+          "minimum": 0,
+          "title": "Hue",
+          "type": "number"
+        },
+        "transition_sec": {
+          "maximum": 15,
+          "minimum": 0.1,
+          "title": "Transition Sec",
+          "type": "number"
+        }
+      },
+      "required": [
+        "mode",
+        "intensity",
+        "noise",
+        "speed",
+        "deformation",
+        "frequency",
+        "turbulence",
+        "particle_density",
+        "particle_spread",
+        "line_density",
+        "line_activity",
+        "glow",
+        "pulse",
+        "hue",
+        "transition_sec"
+      ],
+      "title": "VisualControl",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "type": {
+      "const": "agent.control",
+      "default": "agent.control",
+      "title": "Type",
+      "type": "string"
+    },
+    "version": {
+      "const": "2.0",
+      "default": "2.0",
+      "title": "Version",
+      "type": "string"
+    },
+    "session_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Session Id",
+      "type": "string"
+    },
+    "seq": {
+      "maximum": 9007199254740991,
+      "minimum": 0,
+      "title": "Seq",
+      "type": "integer"
+    },
+    "timestamp": {
+      "description": "Current Unix UTC seconds",
+      "minimum": 0,
+      "title": "Timestamp",
+      "type": "number"
+    },
+    "data_source": {
+      "default": "simulated",
+      "enum": [
+        "simulated",
+        "sensor",
+        "mixed",
+        "unknown"
+      ],
+      "title": "Data Source",
+      "type": "string"
+    },
+    "payload": {
+      "$ref": "#/$defs/ControlPayload"
+    }
+  },
+  "required": [
+    "type",
+    "version",
+    "session_id",
+    "seq",
+    "timestamp",
+    "data_source",
+    "payload"
+  ],
+  "title": "ControlFrame",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}
