@@ -6,11 +6,12 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from backend.api.websocket import router
 from backend.api.control import router as control_router
+from backend.api.sensor import router as sensor_router
 from backend.models import DemoRequest, DemoStatus, FeedbackRequest, Frame
 from backend.session import DemoRuntime
 
 
-def create_app(settings=None) -> FastAPI:
+def create_app(settings=None, sensor_settings=None) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app):
         yield
@@ -18,16 +19,17 @@ def create_app(settings=None) -> FastAPI:
 
     app = FastAPI(title="Jianjing Backend MVP", version="1.2.0", lifespan=lifespan,
                   description="Simulated signals and prototype interaction indices; not medical diagnosis.")
-    app.state.demo = DemoRuntime(settings)
+    app.state.demo = DemoRuntime(settings, sensor_settings)
     origins = os.getenv("CORS_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173")
     app.add_middleware(CORSMiddleware, allow_origins=origins.split(","),
                        allow_methods=["GET", "POST"], allow_headers=["Content-Type"])
     app.include_router(router)
     app.include_router(control_router)
+    app.include_router(sensor_router)
 
     @app.get("/health")
     async def health():
-        return {"status": "ok", "data_source": "simulated"}
+        return {"status": "ok", "data_source": app.state.demo.sensor_status()["effective_data_source"]}
 
     @app.get("/api/controller")
     async def controller_status():

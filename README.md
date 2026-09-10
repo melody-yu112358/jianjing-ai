@@ -2,7 +2,7 @@
 
 医疗健康黑客松 **backend MVP**：模拟身体信号 → State Engine → 规则状态机 → WebSocket → 前端可消费的实时 JSON。
 
-Python 3.11+ / FastAPI。Phase 3在第二阶段可解释状态分级基础上增加可调用的LLM控制器，默认仍使用rule。当前完全使用合成数据，不接HRV、真实硬件、数据库或登录，不包含正式前端。命令行接收器用于联调。
+Python 3.11+ / FastAPI。默认使用rule控制器和合成信号。Phase 4A新增可插拔Sensor Adapter，支持通过HTTP接收外部心率并与模拟呼吸混合；未接真实设备、HRV、数据库或登录，不包含正式前端。命令行接收器用于联调。
 
 **`arousal` 和 `stability` 是用于交互控制的 prototype state index，不是医学诊断指标，也不能判定真实脑区活动、入睡或疗效。** 模拟轨迹按时间预设，不是控制器真实改变了身体；本版验证接口与决策分支。
 
@@ -123,7 +123,7 @@ POST返回与 `GET /api/demo` 相同：
 {"scenario":"calming","self_report":"mind_racing","generation":2,"data_source":"simulated","schema_version":"1.1","scope":"shared_process"}
 ```
 
-`generation` 每次重置加1。为保持指定的WebSocket字段不变，模式、版本和generation放在REST状态中。前端应显示“模拟数据”；如允许其他操作者切换，可轮询GET检测generation变化。该MVP没有鉴权，应仅用于本地或可信演示网络，不能作为公开多用户服务部署。
+`generation` 每次重置加1。为保持指定的WebSocket字段不变，模式、版本和generation放在REST状态中。默认前端显示“模拟数据”；Phase 4A的mixed模式按data_source显示混合来源，不能标为全真实传感器。如允许其他操作者切换，可轮询GET检测generation变化。该MVP没有鉴权，应仅用于本地或可信演示网络，不能作为公开多用户服务部署。
 
 ## Simulator
 
@@ -220,7 +220,7 @@ Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8000/api/feedback -ContentT
 
 REST立即返回完整Frame：state_class=discomfort、stage/action=end、吸呼秒数和所有视听强度为0。已连接WebSocket下一次推送（约1秒内，不计网络延迟）同步停止状态；不等待30秒决策，也不先淡出。不适标记锁存至POST /api/demo重置，普通后续读数不能重新启用训练。尚无baseline、淡出中、已经end时同样接受不适；重复上报不新增传感样本。前端点击不适按钮应立即停止本地动画/声音，再处理服务端响应。
 
-0 / 0 表示“无需定时吸呼”，不是屏息；前端不能用它计算除法或呼吸频率。消息避免宣称已入睡。180秒后保持最终signals/state，继续每秒推送end帧与新的timestamp，visual全0，直到断开或POST重启。这使前端无需将正常结束与网络故障混淆。
+0 / 0 表示“无需定时吸呼”，不是屏息；前端不能用它计算除法或呼吸频率。消息避免宣称已入睡。默认模拟模式180秒后保持最终signals/state，继续每秒推送end帧与新的timestamp，visual全0，直到断开或POST重启。Phase 4A的mixed模式在180秒后也冻结state，但继续刷新有效signals和来源，避免过期外部值伪装为实时心率；这些更新不重新启动引导。
 
 ## WebSocket 消息契约 v1.1
 
@@ -504,7 +504,7 @@ visual是艺术化交互控制，不能解释为真实脑区活动、情绪诊�
 
 每次POST /api/demo重置都会生成`session-<UUIDv4>`，同时清空v2计数与淡出起点；进程重启也生成新ID。同一共享会话内，v2每次发送前分配一个seq，从0开始递增，限定为JavaScript安全整数。v1读取不占用序号。多v2客户端共享计数，所以每条连接的seq可有间隔；发送失败也可能消耗一个序号。重连沿用当前会话计数，不从0重放。达到安全整数上限需重置，不循环复用。
 
-data_source枚举为simulated/sensor/mixed/unknown，当前适配器始终声明simulated。枚举为未来设备适配预留，不能通过demo配置冒充sensor。timestamp是每次推送的当前UTC秒，包括end后持续推送；前后端应同步时钟，前端会拒绝超过15秒的旧帧或未来超过5秒的帧。
+data_source枚举为simulated/sensor/mixed/unknown。Phase 4A按当前有效字段来源选择simulated或mixed；当前没有两路外部信号，不能输出sensor。timestamp是每次推送的当前UTC秒，包括end后持续推送；前后端应同步时钟，前端会拒绝超过15秒的旧帧或未来超过5秒的帧。
 
 前端可将其已有AgentClient地址设置为`ws://127.0.0.1:8000/ws/control`。最小接收示例：
 
@@ -538,3 +538,134 @@ python scripts/test_control_ws.py --local --quiet --frontend-schema /path/to/pub
 ```
 
 脚本需requirements-dev.txt中的jsonschema，仅为开发测试依赖；运行服务无新增依赖。真实网络测试逐帧校验schema、64KiB上限、UTC新鲜度、会话及递增序列，同时接收v1验证兼容，再检查重置、不适停止和debug=false。合成轨迹验证工程行为，不代表入睡效果。
+
+## Phase 4A：Sensor Adapter与混合输入
+
+```text
+                        SensorAdapter
+                       /             \
+          SimulatorAdapter       MixedAdapter
+          HR + Resp模拟          /           \
+                   ExternalHeartRateAdapter   SimulatorAdapter
+                   HTTP缓冲中的外部HR           Resp模拟
+                       \             /
+                       SignalFrame
+                 数值 + timestamp + field_sources
+                            ↓
+                       State Engine
+                            ↓
+               原分级 / 硬规则 / Rule或LLM
+                            ↓
+                      原Visual Mapper
+                            ↓
+             /ws/state v1.1 / /ws/control v2.0
+```
+
+新增模块：`backend/sensors/base.py`定义接口及输入模型，`adapters.py`封装原Simulator并组合字段，`external.py`管理外部心率缓存/校验/TTL，`backend/api/sensor.py`提供输入和状态REST。未改变三场景轨迹、State Engine公式、分级、控制器或视觉映射规则，无新增依赖。
+
+### 模式配置
+
+```powershell
+$env:SENSOR_MODE = 'mixed'          # 默认 simulated
+$env:EXTERNAL_HR_TTL_SEC = '5'      # 默认5秒，允许0.5–60秒
+$env:CONTROLLER_MODE = 'rule'
+.\.venv\Scripts\python.exe -m uvicorn backend.main:app --host 127.0.0.1 --port 8000
+```
+
+恢复纯模拟只需设置`SENSOR_MODE=simulated`并重启；macOS/Linux使用同名export变量。配置只在启动时读取，POST /api/demo只重置场景/会话，不改变模式。`.env.example`依旧不自动加载。
+
+| SENSOR_MODE | HR | Resp | 有效data_source |
+|---|---|---|---|
+| simulated（默认） | 模拟 | 模拟 | simulated |
+| mixed，有新鲜外部HR | external | 模拟 | mixed |
+| mixed，无有效外部HR | 模拟回退 | 模拟 | simulated |
+
+不支持sensor-only；非法模式会明确拒绝启动。simulated模式也可测试POST校验并保存外部缓冲，但不会把它送入算法；状态接口同时展示缓存状态和实际选中来源。
+
+### 发送外部HR测试值
+
+`POST /api/sensor/heart-rate`：
+
+```json
+{"timestamp":1789016400.125,"heart_rate":82}
+```
+
+timestamp必须替换成当前UTC Unix秒。可选session_id建议由生产者携带，用于拒绝跨reset迟到的旧会话数据。PowerShell连续发送接口测试值：
+
+```powershell
+$status = Invoke-RestMethod http://127.0.0.1:8000/api/sensor/status
+1..12 | ForEach-Object {
+  $body = @{
+    timestamp = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds() / 1000.0
+    heart_rate = 82
+    session_id = $status.session_id
+  } | ConvertTo-Json
+  Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8000/api/sensor/heart-rate -ContentType 'application/json' -Body $body
+  Start-Sleep -Seconds 1
+}
+```
+
+成功返回`accepted=true`及当前sensor status。这里只是在POST人工构造数值，**不代表已连接真实设备，也不是医学级或经过校准的测量**。原State Engine仍需要两项完整数值，所以不会把缺失呼吸填成零。
+
+### 输入范围、TTL与降级
+
+- HR只接受有限数字30–220次/分，不接受字符串、布尔值、NaN或Infinity。这是本原型入口的工程范围，不是医学正常范围或告警标准。
+- 事件时间比接收时刻旧超过TTL、未来超过2秒返回422；未来不超过2秒可入缓冲，但在事件时间真正到达前回退模拟，标记external_not_yet_current。
+- session_id不匹配、事件时间早于本次reset、重复或倒序时间戳返回409；无效请求不会覆盖最近有效值。
+- 新鲜度同时考虑事件时间的年龄与收到后经过的单调时钟时长；任一超过TTL即失效。系统时钟回退到接收时间之前也回退模拟，原因server_clock_regressed。
+- 外部缓存只保留最近有效值；新数据到达自动恢复mixed，缺失或过期自动回到simulated。TTL内允许保持最后值，这表示“仍在有效期内”，不是新测量。
+- reset生成新会话、清空外部缓冲和baseline，拒绝旧时间戳复用。未携带session_id时，仅凭时间戳无法区分伪装成新时间的旧会话请求；因此生产者应携带session_id并在reset后重新获取。
+
+来源在SensorReading/SignalFrame的`field_sources`逐字段记录：simulated / external / unknown。汇总为：两路模拟→simulated；一路external一路模拟→mixed；两路external→sensor（仅预留汇总逻辑）；任一unknown→unknown。
+
+### 状态与追溯
+
+`GET /api/sensor/status`不推进模拟时钟或消耗v2序号。返回示例（数值仅示意）：
+
+```json
+{
+  "mode": "mixed",
+  "session_id": "session-...",
+  "effective_data_source": "mixed",
+  "sensor_status": "active",
+  "stale_reason": null,
+  "ttl_sec": 5,
+  "heart_rate": {"source":"external","fresh":true,"age_sec":0.8,"value":82},
+  "resp_rate": {"source":"simulated","fresh":true,"age_sec":0,"value":12},
+  "external_heart_rate": {
+    "fresh":true,"age_sec":0.8,"stale_reason":null,
+    "timestamp":1789016400.125,"received_at":1789016400.2,"heart_rate":82
+  },
+  "last_consumed": {
+    "timestamp":1789016400.9,"heart_rate":82,"resp_rate":12,
+    "field_sources":{"heart_rate":"external","resp_rate":"simulated"},
+    "stale_reason":null
+  }
+}
+```
+
+heart_rate/resp_rate描述**现在实际选中的输入**，external_heart_rate单独描述外部缓存。过期回退时，选中字段source=simulated且fresh=true，外部缓存fresh=false；sensor_status=fallback，stale_reason=external_expired或external_missing，不会把模拟回退值称为外部实时值。last_consumed是最近一个送入State Engine的完整SignalFrame；尚未采样时为null。
+
+POST本身不运行算法。每秒采样一次；同一秒内的WebSocket可展示新缓冲值，但state要等下一个采样点，不能把多客户端读数当作多个新样本。当前快照的signals与data_source对应同一次Adapter读取。State Engine最迟180秒停止推进，之后仍更新信号来源/TTL，但不更新state或重启仪式。
+
+缺失历史样本不补造外部测量：会话追赶漏过的模拟秒时，不把新到HR回填到其接收/事件时间之前。历史缺口使用模拟值，SignalFrame记录external_unavailable_at_tick等原因。现有baseline和rolling window可能同时含模拟与外部样本，切换来源本身会影响指数；本阶段保持公式不变，不将这种变化解释为身体改善。
+
+### Adapter扩展约定与兼容性
+
+统一接口为`SensorAdapter.read(second, timestamp, *, now=None)`，返回SensorReading；单字段Adapter可返回部分读数，MixedAdapter组装为必须同时包含HR/Resp的SignalFrame后再调用原Signals模型。这是非阻塞的同步缓冲读取，保留现有Session的确定性推进方式。未来硬件应由异步生产者填充缓冲；不要在read内做网络、BLE或设备等待。
+
+v1.1/v2.0 schema、顶层与子字段不变。v2仅填入已有data_source枚举的实际值，debug=true展示当前选中信号，debug=false仍省略信号。为避免REST误报，`/health`与`/api/demo`的既有data_source也动态返回有效来源；DemoStatus的REST枚举扩大，但默认模拟响应保持原值。字段级来源与缓存信息只通过新增REST暴露，不向前端快照加字段。
+
+仍为单进程、单共享会话，无设备认证、来源真实性验证、医疗校准、数据库或多用户隔离。external标签仅说明来自外部HTTP输入；本阶段没有接Apple Watch、Wear OS、BLE、手机PPG、真实呼吸或HRV。
+
+### 验证
+
+```bash
+python -m pytest -q
+# 自动启动simulated与mixed两个本地服务（测试TTL=2秒），约25秒
+python scripts/test_sensor_ws.py --local
+# 对已有mixed服务测试，需设置EXTERNAL_HR_TTL_SEC=2并重启；会重置会话
+python scripts/test_sensor_ws.py --mode mixed --base-url http://127.0.0.1:8000
+```
+
+该脚本实际POST人工HR，经State Engine后同时校验v1/v2消息，覆盖输入更新、断流、回退、恢复、无效时间戳和reset。它不连接任何真实设备。旧的demo轨迹脚本应在SENSOR_MODE=simulated下运行。
