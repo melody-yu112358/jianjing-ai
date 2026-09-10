@@ -1,6 +1,54 @@
 const $ = id => document.getElementById(id);
 const video = $('camera'), canvas = $('roi'), ctx = canvas.getContext('2d', {willReadFrequently: true});
 let token = 0, stream = null, timer = null, callback = null, busy = false, upload = null;
+const diagnostic = {secure_context: window.isSecureContext, camera_api: !!navigator.mediaDevices?.getUserMedia,
+  browser_platform: navigator.userAgent || 'unknown', rear_camera: '未检测（需授权）', torch_capability: '未检测',
+  actual_sampling_fps: null, duration_sec: null, signal_quality: null, acceptance: 'not_measured'};
+let ritualSocket = null, pollTimer = null, observedSession = null, pollingStopped = false;
+function renderDiagnostics() { $('diagnostics').textContent = JSON.stringify(diagnostic, null, 2); }
+function closeRitual() { const socket = ritualSocket; ritualSocket = null; socket?.close(); }
+async function refreshDiagnostics() {
+  try {
+    const sensor = await request('/api/sensor/status');
+    if (observedSession && observedSession !== sensor.session_id) {
+      Object.assign(diagnostic, {acceptance:'not_measured', actual_sampling_fps:null, duration_sec:null, signal_quality:null, failure_reason:null});
+      $('result').textContent = '';
+      closeRitual(); $('ritual-status').textContent = '会话已改变，请重新前测后进入仪式。';
+      if (busy) stop('会话不匹配，本次测量已停止，请重新前测。');
+    }
+    observedSession = sensor.session_id;
+    Object.assign(diagnostic, {session_id: sensor.session_id, data_source: sensor.effective_data_source,
+      heart_rate_source: sensor.heart_rate?.source, resp_rate_source: sensor.resp_rate?.source,
+      ttl_sec: sensor.ttl_sec, external_age_sec: sensor.external_heart_rate?.age_sec,
+      expired: sensor.external_heart_rate?.stale_reason === 'external_expired',
+      fallback_reason: sensor.stale_reason, status_connection: 'ok'});
+  } catch (error) { diagnostic.status_connection = errorText(error); }
+  renderDiagnostics();
+}
+async function enterRitual() {
+  if (busy || ritualSocket) return;
+  try {
+    const records = await request('/api/session/summary');
+    if (records.pre_ritual_hr === null) throw new Error('请先完成前测。');
+    const sessionId = records.session_id;
+    const url = new URL('/ws/control', window.location.href);
+    url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
+    const socket = new WebSocket(url); ritualSocket = socket;
+    socket.onmessage = event => {
+      if (ritualSocket !== socket) return;
+      try {
+        const frame = JSON.parse(event.data);
+        if (frame.session_id !== sessionId) { closeRitual(); throw new Error('会话不匹配，请重新前测。'); }
+        if (frame.type !== 'agent.control' || frame.version !== '2.0') throw new Error('控制协议不匹配。');
+        $('ritual-status').textContent = `${frame.payload.guidance.stage} · ${frame.payload.guidance.text} · data_source=${frame.data_source}`;
+        if (frame.payload.guidance.stage === 'end') { closeRitual(); $('ritual-status').textContent += '；请完成后测并查看记录。'; }
+      } catch (error) { closeRitual(); $('ritual-status').textContent = errorText(error); }
+    };
+    socket.onerror = () => { if (ritualSocket === socket) $('ritual-status').textContent = '仪式连接失败，请检查网络后重连。'; };
+    socket.onclose = () => { if (ritualSocket === socket) { ritualSocket = null; $('ritual-status').textContent = '仪式连接中断，可重新进入同一会话。'; } };
+    $('ritual-status').textContent = '正在连接仪式；这是文字联调入口，正式视觉页面可连接同一会话。';
+  } catch (error) { $('ritual-status').textContent = errorText(error); }
+}
 const failures = {
   torch_unavailable: '这台设备或浏览器无法启用闪光灯，请换用支持的手机。',
   insufficient_duration: '有效采集不足 20 秒，请重新测量。', frame_interruption: '视频帧中断，请保持页面前台并重测。',
@@ -15,11 +63,15 @@ function errorText(error) {
   const known = {NotAllowedError:'未获得摄像头权限，请允许后再重试。', NotFoundError:'未找到可用的后置摄像头。',
     OverconstrainedError:'摄像头不支持本次后置采集要求，请换用支持的手机。', NotReadableError:'摄像头被占用或无法读取。',
     AbortError:'操作已取消或请求超时。'};
-  return known[error?.name] || error?.message?.trim() || '摄像头授权未完成或设备无法提供采集，请重试。';
+  const api = {session_mismatch:'会话不匹配，请重新前测。', session_changed_during_measurement:'测量期间会话被重置，请重新前测。',
+    measurement_started_before_reset:'测量早于本次会话，请重新前测。', before_session_reset:'读数属于旧会话，请重新测量。',
+    timestamp_expired:'测量已过期，未写入心率，请重新测量。', measurement_timestamp_invalid:'测量时间已过期或时钟不匹配，请检查网络并重新测量。',
+    pre_measurement_required:'请先完成前测。', reset_before_new_pre_measurement:'请新建会话后再前测。'};
+  return api[error?.message] || known[error?.name] || error?.message?.trim() || '摄像头授权未完成或设备无法提供采集，请重试。';
 }
 function controls(active) {
   busy = active;
-  for (const id of ['pre', 'post', 'reset']) $(id).disabled = active;
+  for (const id of ['pre', 'post', 'reset', 'enter']) $(id).disabled = active;
   $('stop').disabled = !active;
 }
 function releaseCamera() {
@@ -33,19 +85,25 @@ function releaseCamera() {
   stream = null; video.srcObject = null;
 }
 function stop(message = '已停止，本次未完成的采集不提交。') {
+  diagnostic.acceptance = 'interrupted'; renderDiagnostics();
   token++; releaseCamera(); upload?.abort(); upload = null; controls(false); $('status').textContent = message;
 }
 async function request(path, options = {}) {
-  const response = await fetch(path, options);
-  const data = await response.json();
-  if (!response.ok) throw new Error(typeof data.detail === 'string' ? data.detail : `请求被拒绝 (${response.status})`);
-  return data;
+  const abort = new AbortController();
+  const timeout = setTimeout(() => abort.abort(), 5000);
+  try {
+    const response = await fetch(path, {...options, signal: options.signal || abort.signal});
+    const data = await response.json();
+    if (!response.ok) throw new Error(typeof data.detail === 'string' ? data.detail : `请求被拒绝 (${response.status})`);
+    return data;
+  } finally { clearTimeout(timeout); }
 }
 async function summary() {
   $('details').textContent = JSON.stringify(await request('/api/session/summary'), null, 2);
 }
 async function measure(phase) {
   if (busy) return;
+  Object.assign(diagnostic, {acceptance:'measuring', actual_sampling_fps:null, duration_sec:null, signal_quality:null, failure_reason:null, rear_camera:'未检测（需授权）', torch_capability:'未检测'}); renderDiagnostics();
   const run = ++token; controls(true); $('result').textContent = ''; $('progress').value = 0;
   try {
     if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) throw new Error('需要可信 HTTPS 和摄像头支持；手机访问普通局域网 HTTP 不可采集。');
@@ -66,6 +124,8 @@ async function measure(phase) {
     stream = acquired; video.srcObject = acquired; await video.play();
     if (run !== token) return;
     const track = stream.getVideoTracks()[0];
+    diagnostic.rear_camera = track.getSettings().facingMode || 'environment 已请求，设备未报告';
+    diagnostic.torch_capability = !!track.getCapabilities?.().torch; renderDiagnostics();
     if (!track.getCapabilities?.().torch) throw new Error(failures.torch_unavailable);
     await track.applyConstraints({advanced: [{torch: true}]});
     if (run !== token) return;
@@ -93,6 +153,8 @@ async function measure(phase) {
         let r=0, g=0, b=0;
         for (let i=0; i<pixels.length; i+=4) { r+=pixels[i]; g+=pixels[i+1]; b+=pixels[i+2]; }
         samples.push({t: elapsed, r: r/1024, g: g/1024, b: b/1024});
+        diagnostic.duration_sec = Number(elapsed.toFixed(2));
+        diagnostic.actual_sampling_fps = elapsed > 0 ? Number(((samples.length-1)/elapsed).toFixed(1)) : null; renderDiagnostics();
         $('progress').value = Math.min(25, elapsed);
         $('status').textContent = `采集中 ${Math.min(25, elapsed).toFixed(1)} / 25 秒，请保持不动。`;
         if (samples.length > 1200) throw new Error('帧数量异常，请重测。');
@@ -105,24 +167,29 @@ async function measure(phase) {
           signal: upload.signal, body: JSON.stringify({timestamp, session_id: sensor.session_id, phase, torch_enabled: true, samples})});
         clearTimeout(timer); upload = null;
         if (run !== token) return;
-        $('result').textContent = result.valid ? `估算心率 ${result.heart_rate} BPM · 工程质量 ${result.signal_quality.toFixed(2)}` : '本次无有效心率，未写入缓存。';
-        $('status').textContent = result.valid ? '已记录短测结果。TTL到期后会回退模拟信号；这不是连续心率。' : (failures[result.failure_reason] || '信号无效，请重新测量。');
-        controls(false); await summary();
+        Object.assign(diagnostic, {acceptance: result.accepted ? 'accepted' : 'rejected', signal_quality:result.signal_quality, failure_reason:result.failure_reason || null}); renderDiagnostics();
+        $('result').textContent = result.valid && result.accepted ? `估算心率 ${result.heart_rate} BPM · 工程质量 ${result.signal_quality.toFixed(2)}` : '本次无有效心率，未写入缓存。';
+        $('status').textContent = result.valid && result.accepted ? '已记录短测结果。TTL到期后会回退模拟信号；这不是连续心率。' : (failures[result.failure_reason] || '信号无效，请重新测量。');
+        controls(false); await refreshDiagnostics(); await summary();
       } catch (error) { if (run === token) stop(`测量未完成：${errorText(error)} 可重新测量；若提交已到达服务器，请刷新记录核对。`); }
     }
     schedule();
   } catch (error) { if (run === token) stop(`无法开始：${errorText(error)}`); }
 }
+$('enter').onclick = () => enterRitual();
+$('diagnose').onclick = () => refreshDiagnostics();
 $('pre').onclick = () => measure('pre'); $('post').onclick = () => measure('post');
 $('stop').onclick = () => stop();
 $('summary').onclick = () => summary().catch(error => { $('status').textContent = error.message; });
 $('reset').onclick = async () => {
   if (busy) return;
   controls(true);
-  try { await request('/api/demo', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({scenario:'calming'})});
-    $('status').textContent = '新会话已建立，请先前测，再连接正式视觉页面。'; await summary();
+  try { closeRitual(); await request('/api/demo', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({scenario:'calming'})});
+    $('status').textContent = '新会话已建立，请先前测，再连接正式视觉页面。'; await refreshDiagnostics(); await summary();
   } catch(error) { $('status').textContent = error.message; } finally { controls(false); }
 };
 document.addEventListener('visibilitychange', () => { if (document.hidden && busy) stop('页面已离开前台，本次采集停止。'); });
-window.addEventListener('pagehide', () => stop());
+window.addEventListener('pagehide', () => { pollingStopped = true; clearTimeout(pollTimer); closeRitual(); stop(); });
+async function pollDiagnostics() { await refreshDiagnostics(); if (!pollingStopped) pollTimer = setTimeout(pollDiagnostics, 1000); }
+renderDiagnostics(); pollDiagnostics();
 summary().catch(() => {});
