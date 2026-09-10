@@ -8,7 +8,7 @@ from backend.llm.provider import LLMSettings
 from backend.control.adapter import ControlAdapter
 from backend.sensors.simulator import Simulator
 from backend.sensors.adapters import SimulatorAdapter, MixedAdapter
-from backend.sensors.external import ExternalHeartRateAdapter, SensorSettings
+from backend.sensors.external import ExternalHeartRateAdapter, SensorSettings, InputRejected
 from backend.state.arousal import StateEngine, clamp
 
 
@@ -32,6 +32,8 @@ class Session:
             self.sensor_adapter = MixedAdapter(self.sensor_adapter, self.external_hr)
         self.last_reading = None
         self.last_consumed_reading = None
+        self.measurements = {"pre": None, "post": None}
+        self.last_ppg_result = None
 
     def advance_to(self, second: int, timestamp: float) -> Frame:
         if second < 0:
@@ -147,16 +149,41 @@ class DemoRuntime:
         reading = session.sensor_adapter.read(max(0, session.second), now, now=now)
         external = session.external_hr.status(now)
         source = reading.field_sources.heart_rate
-        return {"mode": self.sensor_settings.mode, "session_id": session.control.session_id,
+        return {"mode": self.sensor_settings.mode, "session_id": session.control.session_id, "server_timestamp": now,
             "effective_data_source": reading.data_source,
             "sensor_status": "fallback" if reading.stale_reason else "active",
             "stale_reason": reading.stale_reason, "ttl_sec": self.sensor_settings.ttl_sec,
             "heart_rate": {"source": source, "fresh": True,
-                           "age_sec": external["age_sec"] if source == "external" else 0,
+                           "age_sec": external["age_sec"] if source in ("external", "phone_ppg", "apple_watch") else 0,
                            "value": reading.heart_rate},
             "resp_rate": {"source": "simulated", "fresh": True, "age_sec": 0, "value": reading.resp_rate},
             "external_heart_rate": external,
             "last_consumed": session.last_consumed_reading.model_dump() if session.last_consumed_reading else None}
+
+    def accept_heart_rate(self, value):
+        phase, records = value.measurement_phase, self.session.measurements
+        if phase == "post" and records["pre"] is None:
+            raise InputRejected("pre_measurement_required", 409)
+        if phase == "pre" and records["post"] is not None:
+            raise InputRejected("reset_before_new_pre_measurement", 409)
+        if phase == "post" and value.timestamp <= records["pre"]["timestamp"]:
+            raise InputRejected("post_must_follow_pre", 409)
+        self.session.external_hr.accept(value)
+        if phase:
+            records[phase] = value.model_dump()
+
+    def session_summary(self):
+        status = self.sensor_status()
+        pre, post = self.session.measurements["pre"], self.session.measurements["post"]
+        delta = None if pre is None or post is None else round(post["heart_rate"]-pre["heart_rate"], 1)
+        return {"session_id": self.session.control.session_id,
+            "pre_ritual_hr": pre["heart_rate"] if pre else None, "post_ritual_hr": post["heart_rate"] if post else None,
+            "pre_measurement": pre, "post_measurement": post, "delta_bpm": delta,
+            "heart_rate_source": status["heart_rate"]["source"], "resp_rate_source": "simulated",
+            "controller_mode": self.settings.mode, "data_source": status["effective_data_source"],
+            "last_ppg_result": self.session.last_ppg_result,
+            "message": ("等待完成前测和后测。" if delta is None else
+                        "本次体验前后测得的心率相同。" if delta == 0 else "本次体验前后测得的心率发生变化。")}
 
     def cancel_pending(self):
         if hasattr(self.session.controller, "cancel"):

@@ -4,6 +4,8 @@
 
 Python 3.11+ / FastAPI。默认使用rule控制器和合成信号。Phase 4A新增可插拔Sensor Adapter，支持通过HTTP接收外部心率并与模拟呼吸混合；未接真实设备、HRV、数据库或登录，不包含正式前端。命令行接收器用于联调。
 
+Phase 4B新增独立手机PPG短测工具、服务端BPM估算和前后测记录。**算法/接口已实现，物理手机尚未验收**；Apple Watch仅提供桥接Adapter和设计文档。
+
 **`arousal` 和 `stability` 是用于交互控制的 prototype state index，不是医学诊断指标，也不能判定真实脑区活动、入睡或疗效。** 模拟轨迹按时间预设，不是控制器真实改变了身体；本版验证接口与决策分支。
 
 ## 架构与职责
@@ -616,7 +618,7 @@ $status = Invoke-RestMethod http://127.0.0.1:8000/api/sensor/status
 - 外部缓存只保留最近有效值；新数据到达自动恢复mixed，缺失或过期自动回到simulated。TTL内允许保持最后值，这表示“仍在有效期内”，不是新测量。
 - reset生成新会话、清空外部缓冲和baseline，拒绝旧时间戳复用。未携带session_id时，仅凭时间戳无法区分伪装成新时间的旧会话请求；因此生产者应携带session_id并在reset后重新获取。
 
-来源在SensorReading/SignalFrame的`field_sources`逐字段记录：simulated / external / unknown。汇总为：两路模拟→simulated；一路external一路模拟→mixed；两路external→sensor（仅预留汇总逻辑）；任一unknown→unknown。
+来源在SensorReading/SignalFrame的`field_sources`逐字段记录：simulated / external / unknown；Phase 4B进一步支持phone_ppg / apple_watch。汇总为：两路模拟→simulated；一路外部来源一路模拟→mixed；两路外部来源→sensor（仅预留汇总逻辑）；任一unknown→unknown。
 
 ### 状态与追溯
 
@@ -669,3 +671,39 @@ python scripts/test_sensor_ws.py --mode mixed --base-url http://127.0.0.1:8000
 ```
 
 该脚本实际POST人工HR，经State Engine后同时校验v1/v2消息，覆盖输入更新、断流、回退、恢复、无效时间戳和reset。它不连接任何真实设备。旧的demo轨迹脚本应在SENSOR_MODE=simulated下运行。
+
+## Phase 4B：手机PPG前后短测
+
+```text
+手机后置摄像头 + 闪光灯（用户授权）
+              ↓
+tools/ppg-demo：中心ROI RGB均值，约25秒
+              ↓
+POST /api/sensor/ppg：去趋势、主频估计、质量门控
+              ↓ 有效读数
+同一accept_heart_rate / ExternalHeartRateAdapter
+              ↓
+HR=phone_ppg，Resp=simulated → data_source=mixed
+              ↓
+原State Engine → Controller → Visual Mapper → /ws/control
+```
+
+PPG利用光学强度的周期变化估算心率。本原型输出BPM及工程signal_quality，不测HRV或呼吸率，也不判断疾病、睡眠阶段、真实脑活动或疗效。实现依据与阈值、隐私和已知限制见[手机PPG实现与验收](docs/PHONE_PPG.md)。
+
+启动`SENSOR_MODE=mixed`后打开`/tools/ppg-demo/`。手机需要可信HTTPS、可用后置摄像头和torch控制；不是所有普通手机/浏览器都支持。桌面localhost页面可用于检查界面，但不能代替手机实测。先新建会话并完成约25秒前测，再连接正式视觉前端；结束前预留约25秒后测。不要为后测reset会话。发热或不适立即停止。
+
+工具不重写正式前端，不上传视频，只提交颜色均值序列。后台质量不足时返回valid=false、heart_rate=null和failure_reason，不写入缓存或summary，页面提示重测；质量通过才记录phone_ppg。原HR POST也接受来源/质量/时长/phase元数据，详见上述接口文档。
+
+默认5秒TTL保持原样；前后短测之间自动回退模拟HR，不能将一次读数反复更新时间戳来假装连续监测。`GET /api/sensor/status`展示字段来源、当前新鲜度和回退原因；`GET /api/session/summary`展示pre_ritual_hr/post_ritual_hr、时间、质量、差值及当前来源。历史测量在TTL过期后保留，但reset清空。
+
+只表达“本次体验前后测得的心率发生变化”，不把下降解释为干预有效。由于短测与原baseline/窗口混合，当前也不能称为持续真实生理闭环。
+
+Apple Watch仅完成[原生桥接设计与可选Adapter](docs/APPLE_WATCH.md)，未实接设备：iPhone历史/间歇HealthKit样本不等同于Watch workout中的较高频采样，后续需要官方HealthKit/WatchConnectivity及iOS/watchOS原生开发环境。默认路径不加载Watch Adapter。
+
+```bash
+python -m pytest -q
+node --test tools/ppg-demo/test_capture.cjs
+python scripts/test_ppg_ws.py
+```
+
+Python覆盖已知波形、噪声/低质量、混合来源、TTL、前后测与reset；Node使用模拟DOM/摄像头验证独立工具采集与取消；网络脚本发送合成PPG，经真实HTTP和双WebSocket联调。这三者都不是物理手机或Apple Watch实测。原146项测试、默认模拟轨迹及两套WebSocket schema保留。

@@ -7,7 +7,7 @@ from pydantic import Field
 from backend.control.models import DataSource
 from backend.models import Model, Signals
 
-FieldSource = Literal["simulated", "external", "unknown"]
+FieldSource = Literal["simulated", "external", "phone_ppg", "apple_watch", "unknown"]
 
 
 class FieldSources(Model):
@@ -38,7 +38,7 @@ class SignalFrame(SensorReading):
             return "unknown"
         if sources == {"simulated"}:
             return "simulated"
-        if sources == {"external"}:
+        if sources <= {"external", "phone_ppg", "apple_watch"}:
             return "sensor"
         return "mixed"
 
