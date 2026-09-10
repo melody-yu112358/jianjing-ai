@@ -1,3 +1,20 @@
+# 渐静 · 双层光丝与决策回放
+
+首页提供 60 秒路演案例：连续心率／呼吸曲线、预置个人参考范围、智能体短路径与调整记录，以及双层光丝主体和同步海浪／中文引导。
+
+- 内层表达状态，外层仅在 10–20 秒按 4 秒吸气、6 秒呼气开合。
+- 22 秒转为声音关注，38 秒减少口令，50 秒缩短安排，54–60 秒淡出。
+- 案例由本地时间线驱动，不调用大模型；完成表示仪式结束，不表示检测到入睡。
+- 原后端连接、人工控制和 `/lab` 水体页面保留；实时后端完整决策解释未接入。
+
+本地使用 Node 22.13+、pnpm 11.19.0：`pnpm install --frozen-lockfile`，随后 `pnpm dev`。构建：`pnpm build`。测试：`node --experimental-strip-types --test tests/*.test.ts`。
+
+构建后可用 `node scripts/export-inner-light.mjs /absolute/path/jianjing-demo.html` 导出单文件体验。海浪内嵌，中文人声仍依赖浏览器普通话音色。导出页面用于演示，不包含完整的 `/lab` 路由。
+
+详见 [路演案例与验收](docs/ROADSHOW_DEMO.md)、[声音时间线](docs/AUDIO_DEMO.md)、[Agent 接口](docs/AGENT_INTERFACE.md)。
+
+以下为早期版本记录，首页以以上说明为准。
+
 # 渐静 · 柔性状态球
 
 React + Three.js 前端：柔性球面（涟漪 / 褶皱 / 湍动 / 平静 / 脉动）+ 粒子 + 流线。每种模式拥有连续强度与精细参数，模式间平滑混合。

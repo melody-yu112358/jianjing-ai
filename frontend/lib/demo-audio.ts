@@ -2,10 +2,10 @@ export const DEMO_TRACKS = [
   {id:'sea',name:'海浪',url:'/audio/baltic-sea.mp3'},
 ] as const;
 
-export function demoAudioGain(elapsed:number,volume:number,muted:boolean) {
-  if(muted || elapsed>=40 || elapsed<0)return 0;
+export function demoAudioGain(elapsed:number,volume:number,muted:boolean,duration=40,fadeAt=34) {
+  if(muted || elapsed>=duration || elapsed<0)return 0;
   const fadeIn=Math.min(1,elapsed/2);
-  const fadeOut=elapsed<=34?1:Math.max(0,(40-elapsed)/6);
+  const fadeOut=elapsed<=fadeAt?1:Math.max(0,(duration-elapsed)/(duration-fadeAt));
   return Math.min(1,Math.max(0,volume))*fadeIn*fadeOut;
 }
 
@@ -21,7 +21,9 @@ export class DemoAudio {
   private blocked=false;
   private selected=-1;
   private status:(value:AudioStatus)=>void;
-  constructor(create:()=>Media,status:(value:AudioStatus)=>void=()=>{}) {
+  private duration:number;private fadeAt:number;
+  constructor(create:()=>Media,status:(value:AudioStatus)=>void=()=>{},duration=40,fadeAt=34) {
+    this.duration=duration;this.fadeAt=fadeAt;
     this.status=status;this.media=create();this.media.loop=true;this.media.preload='auto';this.media.volume=0;
   }
   get track(){return this.selected<0?null:DEMO_TRACKS[this.selected];}
@@ -45,10 +47,10 @@ export class DemoAudio {
     });
   }
   update(running:boolean,elapsed:number,volume:number,muted:boolean) {
-    if(!running || elapsed>=40){this.stop();return;}
+    if(!running || elapsed>=this.duration){this.stop();return;}
     if(this.selected<0)return; // Never authorize sound through an effect alone.
     this.wanted=true;
-    this.media.volume=demoAudioGain(elapsed,volume,muted);
+    this.media.volume=demoAudioGain(elapsed,volume,muted,this.duration,this.fadeAt);
     const duration=this.media.duration;
     if(Number.isFinite(duration)&&duration>0){
       const target=elapsed%duration;

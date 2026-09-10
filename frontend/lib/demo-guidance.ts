@@ -26,7 +26,9 @@ export class DemoNarrator {
  private current:SpeechSynthesisUtterance|null=null;
  private paused=false;
  private authorized=false;
- constructor(synth:Synth,make:(text:string)=>SpeechSynthesisUtterance,notify:(status:NarratorStatus)=>void){
+ private cueAt:(t:number)=>{at:number;text:string}|null;
+ constructor(synth:Synth,make:(text:string)=>SpeechSynthesisUtterance,notify:(status:NarratorStatus)=>void,cueAt:(t:number)=>{at:number;text:string}|null=guidanceAt){
+  this.cueAt=cueAt;
   this.synth=synth;this.make=make;this.notify=notify;
  }
  start(fresh=false){if(fresh)this.reset();this.authorized=true;}
@@ -35,7 +37,7 @@ export class DemoNarrator {
  cancel(){this.revision++;this.synth.cancel();this.current=null;this.paused=false;}
  update(running:boolean,t:number,enabled:boolean){
   if(t<this.lastTime)this.reset();this.lastTime=t;
-  const cue=guidanceAt(t);
+  const cue=this.cueAt(t);
   if(!enabled||!cue){this.cancel();this.lastCue=cue?.at??-1;return;}
   if(!running){this.pause();return;}
   if(!this.authorized)return;

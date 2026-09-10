@@ -1,15 +1,20 @@
 export const filamentShape=`
 uniform float uTime,uLineTime,uParticleTime,uIntensity,uNoise,uDeform,uFrequency,uTurbulence;
-uniform float uBreath,uPulse,uSleep,uVisibility,uSpread,uGlow,uHue,uLineActivity,uLineDensity,uLineBrightness;
+uniform float uBreath,uGuide,uPulse,uSleep,uVisibility,uSpread,uGlow,uHue,uLineActivity,uLineDensity,uLineBrightness;
 uniform float uDensity,uParticleSize,uParticleBrightness,uPixelRatio;
 uniform vec4 uModes;
 uniform float uPulseMode;
 vec3 livingPoint(vec3 n,float layer,float seed){
+ if(layer>1.05){
+  float freeMotion=sin(n.y*3.+uTime*.35+seed)*.015;
+  float radius=layer+uGuide*uBreath*.19+(1.-uGuide)*freeMotion;
+  return n*radius*(1.-uSleep*.25);
+ }
  float wave=sin(n.y*(4.+uFrequency*7.)+n.x*2.-uTime*1.7);
  float crosswave=sin(n.x*6.+n.z*4.+uTime*1.2)*sin(n.y*3.-uTime*.7);
  float fine=sin(n.z*11.+n.y*5.-uTime*2.1);
  float motion=uModes.x*wave*.12+uModes.y*wave*.65+uModes.z*crosswave*.7+uModes.w*(wave*.65+fine*.24)+uPulseMode*wave*.22;
- float radius=layer*(1.+motion*uDeform*.12+(uBreath-.5)*uPulse*.045);
+ float radius=layer*(1.+motion*uDeform*.20);
  float twist=.36*n.y+.12*sin(n.y*4.+uTime*.43)*uLineActivity+.11*crosswave*uNoise;
  float cs=cos(twist),sn=sin(twist);
  vec3 p=vec3(n.x*cs-n.y*sn,n.x*sn+n.y*cs,n.z)*radius;
@@ -18,7 +23,7 @@ vec3 livingPoint(vec3 n,float layer,float seed){
  return p*(1.-uSleep*.4);
 }
 vec3 lightColor(vec3 n,float seed){
- vec3 blue=vec3(.30,.65,.94),peach=vec3(1.,.57,.32),lilac=vec3(.69,.54,.86),mint=vec3(.34,.75,.66);
+ vec3 blue=vec3(.38,.69,1.),peach=vec3(1.,.65,.43),lilac=vec3(.73,.60,.95),mint=vec3(.42,.77,.83);
  float warm=smoothstep(-.55,.65,n.x+n.y*.34+sin(n.y*3.)*.22);
  vec3 c=mix(blue,peach,warm);
  c=mix(c,lilac,exp(-pow((n.y+.6)*3.,2.))*.38);
@@ -43,8 +48,9 @@ void main(){
  float ends=smoothstep(0.,.08,aProgress)*(1.-smoothstep(.88,1.,aProgress));
  // The foundational filaments define the being. Optional accent density remains independent.
  float visible=aSeed<.55?1.:1.-smoothstep(uLineDensity*.45+.55-.015,uLineDensity*.45+.55+.015,aSeed);
- vAlpha=(.018+.075*front)*(.6+aSeed*.4)+current*(.065+.11*uIntensity)*front;
+ vAlpha=(.035+.15*front)*(.6+aSeed*.4)+current*(.10+.17*uIntensity)*front;
  vAlpha*=ends*visible*(.55+.6*uGlow)*(aSeed<.55?1.:uLineBrightness*1.8)*(1.-uSleep)*uVisibility;
+ if(aLayer>1.05){vAlpha*=.40;vColor=mix(vColor,vec3(.7,.84,1.),.25);}
 }
 `;
 export const filamentFragment=`
@@ -85,5 +91,5 @@ export const coreFragment=`
 precision highp float;
 uniform float uGlow,uSleep,uBreath,uVisibility;
 varying vec2 vUv;
-void main(){vec2 p=vUv-.5;float d=length(p*vec2(1.,1.15));float a=exp(-d*d*32.)*.035+exp(-d*d*140.)*.07;a*=.6+uGlow*.8+uBreath*.1;gl_FragColor=vec4(1.,.58,.34,a*(1.-uSleep)*uVisibility);}
+void main(){vec2 p=vUv-.5;float d=length(p*vec2(1.,1.15));float a=exp(-d*d*28.)*.09+exp(-d*d*115.)*.19;a*=.6+uGlow*.8;gl_FragColor=vec4(1.,.66,.42,a*(1.-uSleep)*uVisibility);}
 `;
