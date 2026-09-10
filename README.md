@@ -707,3 +707,12 @@ python scripts/test_ppg_ws.py
 ```
 
 Python覆盖已知波形、噪声/低质量、混合来源、TTL、前后测与reset；Node使用模拟DOM/摄像头验证独立工具采集与取消；网络脚本发送合成PPG，经真实HTTP和双WebSocket联调。这三者都不是物理手机或Apple Watch实测。原146项测试、默认模拟轨迹及两套WebSocket schema保留。
+
+## Phase 4C：Demo Hardening / Device Acceptance Toolkit
+
+`/tools/ppg-demo/` 增加设备诊断、实采 FPS/时长/质量、接受结果、session 和实时来源/TTL 状态；支持前测 → 文字仪式入口 → 后测 → summary。复用原有接口，未更改核心算法或 v1.1/v2.0 协议。
+
+现场先运行 `python scripts/check_device_acceptance.py --base http://127.0.0.1:8000`，再新建会话完成前测。脚本会打开 WebSocket 并启动共享仪式，不注入心率。
+详见 [DEVICE_ACCEPTANCE.md](docs/DEVICE_ACCEPTANCE.md) 的设备步骤、故障矩阵和记录表。
+
+**物理手机仍需手工验收；Apple Watch 仍只有 Adapter/文档。PPG 是非医疗原型，合成 PPG 测试不可作为真实生理验证。**

@@ -5,8 +5,11 @@
 <body><main><h1>手机心率短测</h1>
 <p>独立采集工具 · 每次约 25 秒。手指轻盖后置镜头与闪光灯，保持不动，不要用力按压。发热或不适时立即停止。</p>
 <p><small>需要支持摄像头和闪光灯控制的手机浏览器，以及可信 HTTPS。同一设备、姿势和光线下完成前后测；本工具不是医疗设备，不判断入睡或疗效。</small></p>
-<button id="reset">新会话 / 清空记录</button><button id="pre">开始前测</button><button id="post">开始后测</button><button id="stop" disabled>停止采集</button>
+<button id="reset">新会话 / 清空记录</button><button id="pre">开始前测</button><button id="enter">进入 / 重连仪式</button><button id="post">开始后测</button><button id="stop" disabled>停止采集</button>
 <p id="status" role="status" aria-live="polite">先启动 mixed 模式。前测完成后再连接正式视觉页面；后测请在仪式结束前预留约 25 秒。</p>
+<p id="ritual-status" role="status">流程：前测 → 进入仪式 → 后测 → 刷新会话记录。后测不会重置仪式。</p>
+<button id="diagnose">刷新设备诊断</button><pre id="diagnostics" aria-label="设备诊断"></pre>
+<p><small>诊断每秒刷新。TTL 过期后当前来源回退 simulated；历史前后测记录仍保留。摄像头能力须授权后检测，未检测不代表支持。</small></p>
 <video id="camera" autoplay muted playsinline aria-label="摄像头预览"></video><canvas id="roi" width="32" height="32" hidden></canvas>
 <progress id="progress" max="25" value="0" aria-label="测量进度"></progress>
 <p id="result"></p><button id="summary">刷新会话记录</button><pre id="details"></pre>

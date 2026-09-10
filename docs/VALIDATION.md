@@ -125,3 +125,11 @@ State Engine、Classification、Rule/LLM决策逻辑、旧Frame及两个v1/decis
 两场景均使用mind_racing以保持主观先验相同。每帧通过Pydantic契约检查；时间戳递增，平均接收间隔通过0.8–1.3秒校验。两个场景串行测试约88秒。
 
 180秒完整路径通过直接推进模拟时钟验证；实际网络测试覆盖每个场景前45帧，未声称完成两次180秒网络测试。以上是合成输入的工程验证，不是人体试验、入睡判断或疗效证据。
+
+## Phase 4C verification
+
+- 180 Python tests passed; 13 Node capture/tool tests passed (193 total, all previous 186 retained).
+- Actual Uvicorn + HTTP + three /ws/control snapshots passed using check_device_acceptance.py; source simulated without external input.
+- Unreachable server check returned exit code 1 with an explicit connection error.
+- Desktop browser opened diagnostic page and displayed live session/source/TTL and untested camera capabilities correctly.
+- No physical smartphone or Apple Watch was tested. Synthetic / mocked camera tests are not physiological validation.
