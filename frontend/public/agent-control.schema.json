@@ -1,0 +1,359 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Jianjing Agent Control v2.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "type",
+    "version",
+    "session_id",
+    "seq",
+    "timestamp",
+    "data_source",
+    "payload"
+  ],
+  "properties": {
+    "type": {
+      "const": "agent.control"
+    },
+    "version": {
+      "const": "2.0"
+    },
+    "session_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "seq": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "timestamp": {
+      "type": "number",
+      "exclusiveMinimum": 0
+    },
+    "data_source": {
+      "enum": [
+        "simulated",
+        "sensor",
+        "mixed",
+        "unknown"
+      ]
+    },
+    "payload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "visual",
+        "guidance"
+      ],
+      "properties": {
+        "visual": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "intensity",
+            "noise",
+            "speed"
+          ],
+          "properties": {
+            "intensity": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "noise": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "speed": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "deformation": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "frequency": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "turbulence": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "particle_density": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "particle_spread": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "line_density": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "line_activity": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "glow": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "pulse": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "mode": {
+              "enum": [
+                "serenity",
+                "ripple",
+                "fold",
+                "storm",
+                "pulse"
+              ]
+            },
+            "hue": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 360
+            },
+            "transition_sec": {
+              "type": "number",
+              "minimum": 0.1,
+              "maximum": 15
+            },
+            "particle_speed": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "particle_size": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "particle_brightness": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "line_speed": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "line_brightness": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            }
+          }
+        },
+        "guidance": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "text",
+            "stage",
+            "inhale_sec",
+            "exhale_sec"
+          ],
+          "properties": {
+            "text": {
+              "type": "string",
+              "maxLength": 4000
+            },
+            "stage": {
+              "enum": [
+                "assess",
+                "guided_breathing",
+                "settling",
+                "switch_method",
+                "fade_out",
+                "end"
+              ]
+            },
+            "inhale_sec": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 60
+            },
+            "exhale_sec": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 60
+            }
+          },
+          "allOf": [
+            {
+              "if": {
+                "properties": {
+                  "inhale_sec": {
+                    "const": 0
+                  }
+                }
+              },
+              "then": {
+                "properties": {
+                  "exhale_sec": {
+                    "const": 0
+                  }
+                }
+              },
+              "else": {
+                "properties": {
+                  "exhale_sec": {
+                    "exclusiveMinimum": 0
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "stage": {
+                    "not": {
+                      "const": "guided_breathing"
+                    }
+                  }
+                }
+              },
+              "then": {
+                "properties": {
+                  "inhale_sec": {
+                    "const": 0
+                  },
+                  "exhale_sec": {
+                    "const": 0
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "signals": {
+          "type": "object",
+          "required": [
+            "heart_rate",
+            "resp_rate"
+          ],
+          "properties": {
+            "heart_rate": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "resp_rate": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            }
+          }
+        },
+        "state": {
+          "type": "object",
+          "required": [
+            "arousal",
+            "stability",
+            "trend"
+          ],
+          "properties": {
+            "arousal": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "stability": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "trend": {
+              "enum": [
+                "down",
+                "flat",
+                "up"
+              ]
+            }
+          }
+        },
+        "events": {
+          "type": "array",
+          "maxItems": 8,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "type",
+              "timestamp",
+              "simulated"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              },
+              "type": {
+                "const": "sleep_detected"
+              },
+              "timestamp": {
+                "type": "number",
+                "exclusiveMinimum": 0
+              },
+              "simulated": {
+                "type": "boolean"
+              }
+            }
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "guidance": {
+                "properties": {
+                  "stage": {
+                    "const": "end"
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "visual": {
+                "properties": {
+                  "intensity": {
+                    "const": 0
+                  },
+                  "noise": {
+                    "const": 0
+                  },
+                  "speed": {
+                    "const": 0
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
