@@ -716,3 +716,8 @@ Python覆盖已知波形、噪声/低质量、混合来源、TTL、前后测与r
 详见 [DEVICE_ACCEPTANCE.md](docs/DEVICE_ACCEPTANCE.md) 的设备步骤、故障矩阵和记录表。
 
 **物理手机仍需手工验收；Apple Watch 仍只有 Adapter/文档。PPG 是非医疗原型，合成 PPG 测试不可作为真实生理验证。**
+
+## PPG 手机校准反馈
+
+首轮物理手机反馈确认摄像头/torch/25秒采集可运行，但尚无稳定 accepted 心率。新增拒绝细项、3/5秒预热对照、ROI统计与本地校准 JSON 导出，另提供 `python scripts/replay_ppg.py 文件.json` 离线复现。运动跳变判据收紧，质量与一致性阈值未放宽。
+详见 [PPG_CALIBRATION.md](docs/PPG_CALIBRATION.md)；流程跑通不等于生理测量验证。

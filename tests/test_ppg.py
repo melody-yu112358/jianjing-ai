@@ -156,3 +156,55 @@ def test_demo_files_served_without_camera_side_effects():
         js = client.get('/tools/ppg-demo/app.js')
         assert js.status_code == 200 and 'getUserMedia' in js.text
         assert app.state.demo.started_at is None
+
+
+def test_step_is_classified_before_spectral_search():
+    samples = [s.model_copy(update={'r':s.r+(30 if s.t>12 else 0)}) for s in waveform()]
+    result = estimate_ppg(samples, torch_enabled=True)
+    assert not result.valid and result.heart_rate is None
+    assert result.failure_reason == 'motion_or_pressure_change'
+    assert result.diagnostics['rejection_detail'] == 'abrupt_step'
+    assert result.diagnostics['max_step'] > result.diagnostics['step_limit']
+
+
+def test_curved_exposure_does_not_become_accepted_by_diagnostics():
+    samples = [s.model_copy(update={'r':s.r+20*math.exp(-s.t/5)}) for s in waveform()]
+    result = estimate_ppg(samples, torch_enabled=True)
+    assert not result.valid and result.heart_rate is None
+    assert result.diagnostics['full_coherence'] < .45
+    assert abs(result.diagnostics['first_last_mean_delta']) > 10
+
+
+def test_segment_diagnostics_distinguish_disagreement():
+    samples = [s if s.t<12.5 else s.model_copy(update={'r':180+2*math.sin(4*math.pi*s.t)}) for s in waveform()]
+    result = estimate_ppg(samples, torch_enabled=True)
+    assert result.failure_reason == 'inconsistent_pulse'
+    assert result.diagnostics['rejection_detail'] == 'segment_frequency_disagreement'
+    assert result.diagnostics['disagreement_bpm'] > 8
+    assert result.heart_rate is None
+
+
+def test_offline_replay_matches_estimator_without_ingestion():
+    from scripts.replay_ppg import replay
+    body = {'timestamp':1., 'session_id':'historical', 'phase':'pre', 'torch_enabled':True,
+            'samples':[s.model_dump() for s in waveform()]}
+    result = replay({'format':'jianjing-ppg-calibration-v1','request':body})
+    assert result == estimate_ppg(waveform(), torch_enabled=True).model_dump()
+    with pytest.raises(ValueError): replay({'format':'unknown'})
+
+
+def test_rejected_http_exposes_diagnostics_without_updating_hr():
+    app, clock = make_app()
+    with TestClient(app) as client:
+        clock.advance(26)
+        body = measurement(app,clock)
+        for sample in body['samples']:
+            if sample['t'] > 12: sample['r'] += 30
+        response = client.post('/api/sensor/ppg', json=body)
+        assert response.status_code == 200
+        result = response.json()
+        assert not result['accepted'] and result['heart_rate'] is None
+        assert result['diagnostics']['rejection_detail'] == 'abrupt_step'
+        assert result['diagnostics']['step_limit'] <= max(3, 6*result['diagnostics']['residual_std'])
+        assert client.get('/api/session/summary').json()['last_ppg_result']['diagnostics'] == result['diagnostics']
+        assert client.get('/api/sensor/status').json()['effective_data_source'] == 'simulated'
