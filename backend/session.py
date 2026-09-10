@@ -5,6 +5,7 @@ from dataclasses import replace
 from backend.models import DemoRequest, DemoStatus, Frame, Visual
 from backend.ritual.controller import ControllerContext, DecisionRecord, RitualController, RuleBasedController
 from backend.llm.provider import LLMSettings
+from backend.control.adapter import ControlAdapter
 from backend.sensors.simulator import Simulator
 from backend.state.arousal import StateEngine, clamp
 
@@ -18,6 +19,7 @@ class Session:
         self.discomfort = False
         self.second = -1
         self.frame: Frame | None = None
+        self.control = ControlAdapter()
 
     def advance_to(self, second: int, timestamp: float) -> Frame:
         if second < 0:
@@ -39,6 +41,7 @@ class Session:
                               speed=clamp((0.2 + 0.8 * state.arousal) * intensity)),
                 message=decision.message,
             )
+            self.control.observe(self.frame, self.second, self.controller.config.fade_seconds)
         return self.frame.model_copy(update={"timestamp": timestamp})
 
     def _decide(self, state):
@@ -71,6 +74,7 @@ class Session:
         self.frame = Frame(timestamp=timestamp, signals=self.frame.signals, state=state,
                            ritual=decision.as_ritual(), visual=Visual(intensity=0, noise=0, speed=0),
                            message=decision.message)
+        self.control.observe(self.frame, self.second, self.controller.config.fade_seconds)
         return self.frame
 
 
@@ -106,6 +110,10 @@ class DemoRuntime:
 
     def report_discomfort(self) -> Frame:
         return self.session.stop_for_discomfort(time.time())
+
+    def current_control_frame(self, *, include_debug: bool = True):
+        frame = self.current_frame()
+        return self.session.control.snapshot(frame, include_debug=include_debug)
 
     def cancel_pending(self):
         if hasattr(self.session.controller, "cancel"):

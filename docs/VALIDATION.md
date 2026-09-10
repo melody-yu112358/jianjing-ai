@@ -1,5 +1,25 @@
 # Backend MVP 本地验证记录
 
+## Phase 3.5：Frontend Control Protocol v2
+
+基于已合并Phase 3的main（185c69c），分支`feature/frontend-control-v2`。依据用户提供的`AGENT_INTERFACE.md` v2.0；文件SHA256为`AED2F603C9ABEDD1C392061AFE291191270B98C730DCDB9D20E9C758CA6C10C3`。未收到前端独立JSON Schema、Zod实现或mock脚本，因此验证的是文档约束及据此生成的后端schema，未声称完成前端代码级或浏览器验收。
+
+`python -m pytest -q`：**104 passed**，原71项测试文件未修改，新增33项。覆盖v2持续消息、序列/重置/重连、多客户端与v1共存、可选仪表、三轨迹、参数边界、五模式选择路径、渐退连续、停止归零、跨字段schema、mock_llm与未配置LLM回退。`python -m pip check`、`git diff --check`通过；原有两条第三方弃用提示仍存在。
+
+`python scripts/test_control_ws.py --local --quiet`：实际Uvicorn/TCP/WebSocket联调退出码0；三个独立会话并行，总计**190帧v2 + 190帧v1**，另验证各会话的reset、discomfort及debug=false：
+
+| 场景 | 每种协议帧数 | v2平均间隔 | v2强度首尾 | 已验证阶段 |
+|---|---:|---:|---|---|
+| calming | 90 | 1.006秒 | 0.659 → 0 | assess → guided_breathing → settling → fade_out → end |
+| not_responding | 45 | 1.006秒 | 0.634 → 0.365 | assess → guided_breathing → switch_method |
+| already_sleepy | 55 | 1.006秒 | 0.403 → 0 | assess → settling → fade_out → end，无强制呼吸训练 |
+
+每帧v2通过JSON Schema与Pydantic双校验、64KiB大小、UTC新鲜度、递增seq/timestamp检查。calming和already_sleepy实测完整淡出，not_responding到180秒的超时退出通过单元测试。三场景使用各自预设self_report，数值不代表人的疗效比较。
+
+初次联调脚本未持续读取并行v1连接，导致接收端背压及重置前旧帧积压，测试失败；已修正为两协议逐帧读取，并重跑上表完整联调通过。服务端v1端点未作修改。
+
+State Engine、Classification、Rule/LLM决策逻辑、旧Frame及两个v1/decision schema均无差异。新增jsonschema仅为开发测试依赖。实际前端schema可通过脚本`--frontend-schema`补充双契约验证；目标设备视觉舒适度、浏览器帧率、WSS代理和真实硬件均不在本次验证范围内。
+
 ## 第三阶段验证
 
 分支：`feature/llm-controller`，基于Phase 2。`python -m pytest -q`：**71 passed**，包含原24项及47项新增用例。原24项中仅将“LLM占位必须抛NotImplementedError”的过期断言更新为“未配置模型回退规则”；原9项测试、State Engine、分级、三套场景与两个JSON Schema均未修改。第三方原有两条弃用提示仍存在。`python -m pip check`通过。
