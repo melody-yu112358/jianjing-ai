@@ -2,7 +2,7 @@
 
 医疗健康黑客松 **backend MVP**：模拟身体信号 → State Engine → 规则状态机 → WebSocket → 前端可消费的实时 JSON。
 
-Python 3.11+ / FastAPI。第二阶段增加可解释分级、统一控制器接口与已困倦场景，当前完全使用合成数据，不接 LLM、HRV、真实硬件、数据库或登录，不包含正式前端。命令行接收器用于联调。
+Python 3.11+ / FastAPI。Phase 3在第二阶段可解释状态分级基础上增加可调用的LLM控制器，默认仍使用rule。当前完全使用合成数据，不接HRV、真实硬件、数据库或登录，不包含正式前端。命令行接收器用于联调。
 
 **`arousal` 和 `stability` 是用于交互控制的 prototype state index，不是医学诊断指标，也不能判定真实脑区活动、入睡或疗效。** 模拟轨迹按时间预设，不是控制器真实改变了身体；本版验证接口与决策分支。
 
@@ -15,7 +15,11 @@ State Engine
        ↓
 State Classification
        ↓
-Ritual Controller
+Hard Safety Rules
+       ↓
+RuleBasedController / LLMController
+       ↓
+Validated RitualDecision
        ↓
 WebSocket
        ↓
@@ -38,7 +42,8 @@ jianjing-ai/
 │   ├── sensors/simulator.py   # 合成轨迹插值
 │   ├── state/arousal.py       # baseline与rolling window
 │   ├── state/classification.py # 持续稳定与可解释状态分级
-│   ├── ritual/controller.py   # 统一接口、规则实现、LLM占位
+│   ├── ritual/controller.py   # 统一接口、规则实现、会话上下文
+│   ├── llm/                   # Provider、Prompt、校验与异步LLM控制器
 │   └── api/websocket.py       # /ws/state
 ├── data/
 │   ├── demo_calming.json
@@ -188,7 +193,7 @@ reason_codes为可扩展字符串列表；前端对未知代码保留原值，�
 
 `RitualController.decide(state, context) -> RitualDecision`是统一抽象接口。当前 `RuleBasedController` 是纯函数式实现，相同state和不可变ControllerContext产生相同输出，不把状态保存在controller内部。Session负责保存当前stage、进入时间、最近决策时间及淡出起始强度。
 
-`LLMController`只保留同一接口与返回类型，调用会明确抛出NotImplementedError；没有依赖SDK、网络请求或后台模型调用。未来实现仍须返回同一RitualDecision并通过校验，不得自由增加字段或医疗建议。决策schema见[ritual-decision.schema.json](docs/ritual-decision.schema.json)。
+Phase 3的`LLMController`实现相同接口，后台调用可替换Provider；输出先校验，再映射为同一RitualDecision，错误自动回退RuleBasedController。决策schema见[ritual-decision.schema.json](docs/ritual-decision.schema.json)，与Phase 2完全相同。具体运行模式见下节。
 
 控制器只看self_report、状态及经过时间，**不读scenario名称**。初次baseline就绪时退出assess，常规阶段每30秒决策；ready_to_disengage可提前触发淡出，不适立即停止，淡出计时每秒更新。阶段如下：
 
@@ -260,7 +265,7 @@ REST立即返回完整Frame：state_class=discomfort、stage/action=end、吸呼
 | visual.intensity / noise / speed | number，[0,1] | 无量纲动画参数，不是脑活动或物理速度 |
 | message | string | 当前中文提示 |
 
-常规强度为`(0.2 + 0.65 * arousal)`，settling/switch_method或slow_down动作乘0.65；fade_out使用进入前一帧的强度渐退。`noise=(1-stability)*intensity`，`speed=(0.2+0.8*arousal)*intensity`，全部clamp。当前audio_intensity与视觉强度相同，end均为0。前端可平滑插值，但不可把视觉变平静宣称为实测疗效。
+规则模式常规强度为`(0.2 + 0.65 * arousal)`，settling/switch_method或slow_down动作乘0.65；fade_out使用进入前一帧的强度渐退。`noise=(1-stability)*intensity`，`speed=(0.2+0.8*arousal)*intensity`，全部clamp。规则模式audio_intensity与视觉强度相同；LLM可分别选择两项强度，end均为0。前端可平滑插值，但不可把视觉变平静宣称为实测疗效。
 
 正式JSON Schema在[docs/state.schema.json](docs/state.schema.json)，与 `Frame` 模型自动比对。WebSocket不会自动出现在OpenAPI中，因此额外提供schema端点。保持v1字段稳定；未来破坏性改动应提供新的版本契约。
 
@@ -309,6 +314,119 @@ CLI每次会先POST重置共享会话，避免跟其他演示同时运行。`--v
 
 ## 开发约束
 
-只修改本后端及契约，前端由队友独立实现。未来真实设备、LLM和医疗验证应另行设计，不能直接把当前演示规则当成医疗判断。
+只修改本后端，前端由队友独立实现。真实设备和医疗验证需另行设计，不能直接把当前演示规则或LLM文案当成医疗判断。
+
+## Phase 3 控制器模式
+
+```text
+Simulator → State Engine → State Classification
+                                     ↓
+                              Hard Safety Rules
+                                     ↓
+                     RuleBasedController / LLMController
+                                     ↓
+                          Validated RitualDecision
+                                     ↓
+                          WebSocket → Frontend
+```
+
+`CONTROLLER_MODE`只支持`rule / mock_llm / llm`，默认`rule`；配置在启动时读取，改变后重启。Session重置会清空请求缓存与最近决策，取消未完成请求。
+
+| 模式 | 行为 | 外部请求 |
+|---|---|---|
+| rule | Phase 2规则路径，原始三场景行为保持 | 无 |
+| mock_llm | 确定性的本地Provider，走与真实模型相同的Prompt输入结构、校验和结果应用路径；它本身不是模型 | 无 |
+| llm | 请求配置的模型服务；缺少配置或请求/校验失败时自动回退规则 | 已配置时每阶段至多一次 |
+
+Windows PowerShell例子：
+
+```powershell
+$env:CONTROLLER_MODE = 'mock_llm'
+.\.venv\Scripts\python.exe -m uvicorn backend.main:app --host 127.0.0.1 --port 8000
+```
+
+真实Provider配置：
+
+```powershell
+$env:CONTROLLER_MODE = 'llm'
+$env:LLM_BASE_URL = 'https://your-provider.example/v1'
+$env:LLM_MODEL = 'your-model-name'
+$env:LLM_API_KEY = Read-Host '模型 API Key' -MaskInput
+$env:LLM_TIMEOUT_SEC = '3'
+.\.venv\Scripts\python.exe -m uvicorn backend.main:app --host 127.0.0.1 --port 8000
+```
+
+macOS/Linux可用`export CONTROLLER_MODE=mock_llm`设置模式；其他变量同名。`.env.example`只提供空模板，**不会自动读取.env文件**，需要将配置导入进程环境。真实Key不要写入源码、README、测试或提交；`.env`及`.env.*`默认被忽略，仅`.env.example`例外。
+
+Provider是chat-completions协议适配器：请求`LLM_BASE_URL + /chat/completions`，使用Bearer Key、配置的model、system/user messages及`response_format.type=json_schema`。供应商必须支持此协议与严格结构化输出；不支持时返回错误并回退，不静默改用无约束文本。没有固定模型或固定供应商地址。非此协议的服务通过实现`LLMProvider.generate_decision(payload)`并注入LLMController替换；无需改State Engine或前端。外部地址要求HTTPS，本地测试允许loopback HTTP，不自动跟随重定向。
+
+### 输入与短期记忆
+
+模型只接收State模型中的加工指标及枚举上下文，不接收signals、逐秒流、原始音频、硬件信息或个人身份信息。示例：
+
+```json
+{
+  "self_report": "mind_racing",
+  "state_class": "not_responding",
+  "arousal": 0.71,
+  "stability": 0.42,
+  "trend": "flat",
+  "confidence": 0.81,
+  "reason_codes": ["rolling_trend_flat", "no_improvement_after_intervention"],
+  "previous_action": "continue_breathing",
+  "elapsed_intervention_sec": 60,
+  "previous_stage": "guided_breathing",
+  "recent_decisions": [
+    {"action": "continue_breathing", "state_class": "activated"},
+    {"action": "slow_down", "state_class": "settling"}
+  ]
+}
+```
+
+Session仅保存最近3次阶段决策或动作变化的`action / state_class`。每秒重复同一动作不会挤掉历史；缓存命中的相同决策也不重复记录。历史仅在会话内存在，重置即清空，不做长期画像或数据库。真实模型可用历史判断是否重复无效动作；mock在未响应且上次为grounding时切换natural breathing。
+
+### 模型输出和校验
+
+Provider返回原始JSON文本，控制器统一解析。模型不生成stage，由action确定stage，因此无法提交相互矛盾的stage/action。
+
+```json
+{
+  "action": "switch_to_grounding",
+  "inhale_sec": 0,
+  "exhale_sec": 0,
+  "visual_intensity": 0.42,
+  "audio_intensity": 0.35,
+  "message": "不用控制呼吸，先听一会儿声音就好。",
+  "reason": "连续一轮没有明显趋稳，先降低任务感。"
+}
+```
+
+七种action与Phase 2一致。continue_breathing/slow_down映射guided_breathing，reduce_stimulation映射settling，natural_breathing/grounding映射switch_method，fade_out/end映射同名stage。最后仍序列化为原有RitualDecision，WebSocket schema维持**1.1**，顶层及子字段均未改变。FastAPI应用版本单独升级为1.2.0。
+
+校验拒绝重复JSON key、非JSON/围栏、缺失或额外字段、未知action、字符串冒充数值、非有限数和超范围值。引导吸气限3–5秒、呼气4–7秒且不少于吸气；非呼吸动作时长必须为0。end/fade_out必须请求零强度，渐退曲线由确定性逻辑执行。message最多25字符、reason最多80字符，保守地限制为中文提示与标点，并过滤医疗/药物/睡眠结论、脑区解释、强迫和屏息用语。
+
+文字过滤是工程防线，不是完整的医学语义证明；当前仅用于合成数据演示。所有模型输出都是不可信输入，不能因通过JSON校验就作为医学证据。
+
+### 硬规则和 fallback
+
+1. **先检查硬规则**：discomfort立即end；已困倦报告使用规则短路径；baseline未满、已在fade_out/end、达到最长会话时长都不调用模型。ready_to_disengage必须有confidence≥0.65、连续两窗口与退出理由证据才直接fade_out；证据不足先按stable处理。
+2. **异步请求**：服务器中`decide`立即返回规则输出，Provider在后台生成；不阻塞1Hz推送。每30秒最多一次请求，等待时不重复发起，也不自动重试。下一次取帧时应用已验证的结果。
+3. **返回后再校验当前状态**：模型返回时如果用户已不适、已准备退出或场景已重置，取消/丢弃旧结果；不得重新启动呼吸任务。已经settling/switch_method或未响应时不接受继续呼吸训练。
+4. **任何失败自动回退**：解析/字段/语义校验失败、服务错误、超时、缺少配置都采用当时的RuleBasedController，不把模型异常送到WebSocket。`LLM_TIMEOUT_SEC`为整次调用期限，默认3秒，可设0.05–10秒；没有每秒重试风暴。
+
+服务器使用非阻塞调度；离线同步调用LLMController.decide时会等待有上限的请求完成。使用者应在FastAPI事件循环中使用当前Session路径，不要在其他异步入口自行包装阻塞调用。
+
+`GET /api/controller`提供演示诊断：mode、source、calls、successes、failures、last_error。source区分rule/safety/pending/mock_llm/llm/fallback，前端无需消费；统计随session重置。日志仅记录错误类型，不记录Key、请求体或模型原文。Key从不进入WebSocket或诊断响应。
+
+### Phase 3 验证
+
+```bash
+python -m pytest -q
+python scripts/test_phase3_live.py
+```
+
+`test_phase3_live.py`自行在空闲loopback端口启动独立Uvicorn服务，约45秒并行验证五个用例，每个45帧：rule、mock_llm、llm本地HTTP协议成功响应、llm超时、llm未配置；同时验证不适立即响应与WebSocket停止。测试完成关闭服务。它会真实走HTTP适配器，但**本地协议Stub不是外部大模型**，不会使用你的Key或对供应商发请求。
+
+接入真实供应商后，可启动llm模式并运行`python scripts/test_ws.py --scenario not_responding --samples 70`，随后检查`GET /api/controller`中successes和source。messages、source与结构化结果共同用于确认真实调用；仅有持续帧或正常动画不能证明调用了模型。
 
 框架参考：[FastAPI WebSockets](https://fastapi.tiangolo.com/advanced/websockets/)。

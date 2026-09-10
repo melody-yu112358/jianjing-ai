@@ -1,4 +1,5 @@
 import os
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -8,10 +9,15 @@ from backend.models import DemoRequest, DemoStatus, FeedbackRequest, Frame
 from backend.session import DemoRuntime
 
 
-def create_app() -> FastAPI:
-    app = FastAPI(title="Jianjing Backend MVP", version="1.1.0",
+def create_app(settings=None) -> FastAPI:
+    @asynccontextmanager
+    async def lifespan(app):
+        yield
+        app.state.demo.cancel_pending()
+
+    app = FastAPI(title="Jianjing Backend MVP", version="1.2.0", lifespan=lifespan,
                   description="Simulated signals and prototype interaction indices; not medical diagnosis.")
-    app.state.demo = DemoRuntime()
+    app.state.demo = DemoRuntime(settings)
     origins = os.getenv("CORS_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173")
     app.add_middleware(CORSMiddleware, allow_origins=origins.split(","),
                        allow_methods=["GET", "POST"], allow_headers=["Content-Type"])
@@ -20,6 +26,10 @@ def create_app() -> FastAPI:
     @app.get("/health")
     async def health():
         return {"status": "ok", "data_source": "simulated"}
+
+    @app.get("/api/controller")
+    async def controller_status():
+        return app.state.demo.controller_status()
 
     @app.get("/api/demo", response_model=DemoStatus)
     async def get_demo():

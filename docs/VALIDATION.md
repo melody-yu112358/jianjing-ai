@@ -1,5 +1,27 @@
 # Backend MVP 本地验证记录
 
+## 第三阶段验证
+
+分支：`feature/llm-controller`，基于Phase 2。`python -m pytest -q`：**71 passed**，包含原24项及47项新增用例。原24项中仅将“LLM占位必须抛NotImplementedError”的过期断言更新为“未配置模型回退规则”；原9项测试、State Engine、分级、三套场景与两个JSON Schema均未修改。第三方原有两条弃用提示仍存在。`python -m pip check`通过。
+
+新增覆盖：三场景rule完整轨迹一致；三模式与环境配置；严格JSON、动作白名单、缺失/额外字段、范围/类型、内容限制；超时和HTTP错误回退；不适取消请求；异步结果按当前状态重新校验；最多3项记忆与会话重置；已困倦完整短路径；Provider请求契约与日志不泄露响应。
+
+`python scripts/test_phase3_live.py`实际启动Uvicorn并经TCP/WebSocket测试，退出码0。每用例接收45帧，共225帧，另验证不适REST即时响应与下一帧停止：
+
+| 用例 | 平均推送间隔 | 模型路径结果 | 不适停止 |
+|---|---:|---|---|
+| rule | 1.008秒 | 0次调用 | 通过 |
+| mock_llm | 1.016秒 | 2次本地Provider成功 | 通过 |
+| llm / 本地HTTP协议服务 | 1.016秒 | 2次HTTP请求及校验成功 | 通过 |
+| llm / HTTP超时 | 1.010秒 | 2次超时，回退规则 | 通过 |
+| llm / 未配置模型 | 1.016秒 | 2次配置缺失，回退规则 | 通过 |
+
+各用例均在not_responding场景进入switch_method；每帧通过现有Frame校验，timestamp递增。超时用例确认服务收到请求后延迟2秒，控制器在1秒期限后回退。初次测试使用0.05秒期限，可能在请求到达前超时，因此修正测试时限后重跑以上完整用例。
+
+**未配置真实供应商Key，也未调用外部大模型。** 实际HTTP验证使用本地协议Stub及合成测试凭据，证明请求、解析、调度与回退链路；不代表已验证具体模型的兼容性、输出质量或疗效。部署者需按README配置供应商后查看`/api/controller`确认成功调用。
+
+本阶段WebSocket契约仍为1.1，RitualDecision结构不变；没有硬件、HRV、数据库或前端改动。HTTPX从已有开发依赖移至运行依赖，未增加新的依赖包。
+
 ## 第二阶段验证
 
 分支：`feature/state-classification-controller`。Python 3.12.4，原项目虚拟环境，无新增依赖。
