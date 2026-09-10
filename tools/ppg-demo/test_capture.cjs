@@ -12,7 +12,7 @@ function harness({torch=true, denied=false, pending=false}={}) {
   const track={stop(){stopped++},getCapabilities(){return {torch}},getSettings(){return {torch}},
     async applyConstraints(){},addEventListener(){}};
   const stream={getTracks(){return [track]},getVideoTracks(){return [track]}};
-  for (const id of ['camera','roi','pre','post','reset','stop','summary','status','result','progress','details','diagnostics','diagnose','enter','ritual-status'])
+  for (const id of ['camera','roi','pre','post','reset','stop','summary','status','result','progress','details','diagnostics','diagnose','enter','ritual-status','warmup','export'])
     elements[id]={disabled:false,textContent:'',value:0};
   Object.assign(elements.camera,{videoWidth:320,videoHeight:240,srcObject:null,async play(){},
     requestVideoFrameCallback(fn){capture=fn;return 1},cancelVideoFrameCallback(){capture=null}});
@@ -32,7 +32,7 @@ function harness({torch=true, denied=false, pending=false}={}) {
     }});
   vm.runInContext(source, context);
   return {elements,posts,run:s=>vm.runInContext(s,context),get stopped(){return stopped},
-    resolve(){cameraResolve(stream)},async frame(i){frame=i;await capture(1600+i*1000/30,{mediaTime:i/30})}};
+    resolve(){cameraResolve(stream)},async frame(i){frame=i;await capture(3100+i*1000/30,{mediaTime:i/30})}};
 }
 test('permission denied gives readable error',async()=>{
   const h=harness({denied:true});await h.run('measure("pre")');
@@ -103,4 +103,20 @@ test('ritual uses same session, streams guidance, and closes at end',async()=>{
   await h.run('enterRitual()');
   h.run(`socket.onmessage({data:JSON.stringify({type:'agent.control',version:'2.0',session_id:'session-test',data_source:'mixed',payload:{guidance:{stage:'end',text:'结束'}}})})`);
   assert.match(h.elements['ritual-status'].textContent,/mixed/);assert.equal(h.run('socket.closed'),true);
+});
+
+test('calibration retains rejected samples and diagnostics without synthesizing HR',async()=>{
+  const h=harness();await h.run('measure("pre")');
+  h.run(`request = async path => path === '/api/sensor/ppg' ? {valid:false,accepted:false,heart_rate:null,signal_quality:0.1,failure_reason:'inconsistent_pulse',diagnostics:{disagreement_bpm:20}} : {session_id:'session-test'}`);
+  for(let i=0;i<=750;i++) await h.frame(i);
+  const record=JSON.parse(h.run('JSON.stringify(calibrationRecord)'));
+  assert.equal(record.request.samples.length,751);assert.equal(record.roi_diagnostics.length,751);
+  assert.equal(record.result.heart_rate,null);assert.equal(record.result.diagnostics.disagreement_bpm,20);
+  assert.equal(record.capture.warmup_sec,3);assert.equal(record.capture.roi,'center_50_percent_32x32');
+});
+test('longer warmup skips initial frames without shortening sample duration',async()=>{
+  const h=harness();h.elements.warmup.value=5;await h.run('measure("pre")');
+  for(let i=0;i<=810 && !h.posts.length;i++) await h.frame(i);
+  assert.equal(h.posts.length,1);assert.equal(h.posts[0].samples[0].t,0);
+  assert.ok(h.posts[0].samples.at(-1).t>=25);assert.equal(h.run('diagnostic.warmup_sec'),5);
 });

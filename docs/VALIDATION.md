@@ -133,3 +133,7 @@ State Engine、Classification、Rule/LLM决策逻辑、旧Frame及两个v1/decis
 - Unreachable server check returned exit code 1 with an explicit connection error.
 - Desktop browser opened diagnostic page and displayed live session/source/TTL and untested camera capabilities correctly.
 - No physical smartphone or Apple Watch was tested. Synthetic / mocked camera tests are not physiological validation.
+
+## PPG calibration diagnostics verification
+
+185 Python + 15 Node tests passed (200 total); all prior 193 cases retained. Added tests for step rejection classification, curved exposure rejection, segment disagreement diagnostics, offline replay, HTTP rejection without ingestion, failed-record retention and warmup duration. No physical retest of this change. User reports OnePlus Ace2 Pro PJA110 / browser 40.10.21.1_66b0631_260821 camera and torch flow works but accepted BPM remains unstable.
