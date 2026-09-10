@@ -1,5 +1,24 @@
 # Backend MVP 本地验证记录
 
+## Phase 4A：Sensor Adapter与混合信号
+
+基于main `f6c8ae1`，分支`feature/sensor-adapters`。`python -m pytest -q`：**146 passed**，原104项文件未修改，新增42项；原有两条第三方弃用提示保留。无新增依赖，`pip check`和`git diff --check`通过。
+
+三套默认模拟轨迹各181帧，与修改前main中Session产生的完整v1帧序列SHA256一致。新增验证涵盖部分/完整输入模型、字段来源汇总、mixed输入进入引擎、同秒不增加样本、TTL边界/回退/恢复、时钟回退、未来/旧/乱序/重复数据、reset隔离、无历史回填、结束后过期来源更新、REST状态以及v1/v2契约。NaN/Infinity请求返回422，修复初步实现中错误响应序列化导致500的问题。
+
+`python scripts/test_sensor_ws.py --local`真实启动两个独立Uvicorn服务，以人工HTTP心率输入同时联调两套WebSocket，最终退出码0：
+
+| 模式 | v1帧数 | v2帧数 | 平均间隔 | v2观察到的来源 |
+|---|---:|---:|---:|---|
+| simulated | 23 | 23 | 1.005秒 | simulated |
+| mixed | 23 | 23 | 1.005秒 | simulated、mixed |
+
+合计46帧v1 + 46帧v2。每帧按保存的既有schema校验。测试发送105、85、95的人工HR，验证实际输入更新、引擎last_consumed字段来源、停止发送后的2秒TTL回退、恢复、无效时间与非有限输入拒绝、reset改变session_id/seq归零并清空缓存。初次恢复用例只发送一次后等两帧，跨过测试TTL而失败；修正为恢复阶段持续发送后重跑通过，TTL规则未放宽。
+
+State Engine、Classification、Rule/LLM Controller、Visual Mapper、Simulator场景逻辑和三份WebSocket/decision schema均未修改。v2仅更新已有data_source值；REST /health及/api/demo的既有来源字段也按有效输入更新，默认响应仍simulated。
+
+Adapter接口使用同步非阻塞缓冲读取，HTTP生产者与1Hz采样解耦；POST或同秒读取不会额外推进State Engine。来源变化不重建baseline；历史窗口可能包含混合来源，不能将变化作为疗效证据。该验证未使用任何真实设备，不包含认证、校准、真实呼吸、HRV、数据库或多用户。
+
 ## Phase 3.5：Frontend Control Protocol v2
 
 基于已合并Phase 3的main（185c69c），分支`feature/frontend-control-v2`。依据用户提供的`AGENT_INTERFACE.md` v2.0；文件SHA256为`AED2F603C9ABEDD1C392061AFE291191270B98C730DCDB9D20E9C758CA6C10C3`。未收到前端独立JSON Schema、Zod实现或mock脚本，因此验证的是文档约束及据此生成的后端schema，未声称完成前端代码级或浏览器验收。

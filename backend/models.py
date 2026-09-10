@@ -78,7 +78,7 @@ class DemoStatus(Model):
     scenario: Scenario
     self_report: SelfReport
     generation: int
-    data_source: Literal["simulated"] = "simulated"
+    data_source: Literal["simulated", "mixed", "sensor", "unknown"] = "simulated"
     schema_version: Literal["1.1"] = "1.1"
     scope: Literal["shared_process"] = "shared_process"
 

@@ -7,11 +7,14 @@ from backend.ritual.controller import ControllerContext, DecisionRecord, RitualC
 from backend.llm.provider import LLMSettings
 from backend.control.adapter import ControlAdapter
 from backend.sensors.simulator import Simulator
+from backend.sensors.adapters import SimulatorAdapter, MixedAdapter
+from backend.sensors.external import ExternalHeartRateAdapter, SensorSettings
 from backend.state.arousal import StateEngine, clamp
 
 
 class Session:
-    def __init__(self, config: DemoRequest, controller: RitualController | None = None):
+    def __init__(self, config: DemoRequest, controller: RitualController | None = None,
+                 sensor_settings: SensorSettings | None = None, *, clock=None, monotonic=None):
         self.simulator = Simulator(config.scenario, config.self_report)
         self.engine = StateEngine(self.simulator.self_report)
         self.controller = controller or RuleBasedController()
@@ -20,6 +23,15 @@ class Session:
         self.second = -1
         self.frame: Frame | None = None
         self.control = ControlAdapter()
+        self.sensor_settings = sensor_settings or SensorSettings()
+        self.clock = clock or time.time
+        self.external_hr = ExternalHeartRateAdapter(self.sensor_settings, self.control.session_id,
+            created_at=self.clock(), clock=self.clock, monotonic=monotonic or time.monotonic)
+        self.sensor_adapter = SimulatorAdapter(self.simulator)
+        if self.sensor_settings.mode == "mixed":
+            self.sensor_adapter = MixedAdapter(self.sensor_adapter, self.external_hr)
+        self.last_reading = None
+        self.last_consumed_reading = None
 
     def advance_to(self, second: int, timestamp: float) -> Frame:
         if second < 0:
@@ -28,7 +40,11 @@ class Session:
         target = min(second, self.controller.MAX_SECONDS)
         while self.second < target:
             self.second += 1
-            signal = self.simulator.sample(self.second)
+            # Do not backfill a newly received external value into historical ticks.
+            sample_time = max(0, timestamp - (second - self.second))
+            reading = self.sensor_adapter.read(self.second, sample_time, now=timestamp)
+            signal = reading.signals()
+            self.last_consumed_reading = reading
             started = self.context.intervention_started
             state = self.engine.update(signal, intervention_seconds=0 if started is None else self.second - started,
                                        discomfort=self.discomfort)
@@ -42,6 +58,10 @@ class Session:
                 message=decision.message,
             )
             self.control.observe(self.frame, self.second, self.controller.config.fade_seconds)
+        # Refresh live provenance even at the same tick or after the state is frozen.
+        # This does not add another sample to the engine's 1 Hz window.
+        self.last_reading = self.sensor_adapter.read(self.second, timestamp, now=timestamp)
+        self.frame = self.frame.model_copy(update={"signals": self.last_reading.signals()})
         return self.frame.model_copy(update={"timestamp": timestamp})
 
     def _decide(self, state):
@@ -74,13 +94,18 @@ class Session:
         self.frame = Frame(timestamp=timestamp, signals=self.frame.signals, state=state,
                            ritual=decision.as_ritual(), visual=Visual(intensity=0, noise=0, speed=0),
                            message=decision.message)
+        self.last_reading = self.sensor_adapter.read(self.second, timestamp, now=timestamp)
+        self.frame = self.frame.model_copy(update={"signals": self.last_reading.signals()})
         self.control.observe(self.frame, self.second, self.controller.config.fade_seconds)
         return self.frame
 
 
 class DemoRuntime:
-    def __init__(self, settings: LLMSettings | None = None):
+    def __init__(self, settings: LLMSettings | None = None, sensor_settings: SensorSettings | None = None,
+                 *, clock=None, monotonic=None):
         self.settings = settings or LLMSettings.from_env()
+        self.sensor_settings = sensor_settings or SensorSettings.from_env()
+        self.clock, self.monotonic = clock or time.time, monotonic or time.monotonic
         self.generation = 0
         self.reset(DemoRequest(scenario="calming"))
 
@@ -93,27 +118,45 @@ class DemoRuntime:
             from backend.llm.mock import MockLLMProvider
             controller = LLMController(settings=self.settings,
                 provider=MockLLMProvider() if self.settings.mode == "mock_llm" else None)
-        self.session = Session(config, controller)
+        self.session = Session(config, controller, self.sensor_settings, clock=self.clock, monotonic=self.monotonic)
         self.started_at: float | None = None
         self.generation += 1
         return self.status()
 
     def status(self) -> DemoStatus:
         sim = self.session.simulator
-        return DemoStatus(scenario=sim.scenario, self_report=sim.self_report, generation=self.generation)
+        return DemoStatus(scenario=sim.scenario, self_report=sim.self_report, generation=self.generation,
+                          data_source=self.sensor_status()["effective_data_source"])
 
     def current_frame(self) -> Frame:
-        now = time.monotonic()
+        now = self.monotonic()
         if self.started_at is None:
             self.started_at = now
-        return self.session.advance_to(int(now - self.started_at), time.time())
+        return self.session.advance_to(int(now - self.started_at), self.clock())
 
     def report_discomfort(self) -> Frame:
-        return self.session.stop_for_discomfort(time.time())
+        return self.session.stop_for_discomfort(self.clock())
 
     def current_control_frame(self, *, include_debug: bool = True):
         frame = self.current_frame()
-        return self.session.control.snapshot(frame, include_debug=include_debug)
+        return self.session.control.snapshot(frame, include_debug=include_debug,
+                                             data_source=self.session.last_reading.data_source)
+
+    def sensor_status(self):
+        session, now = self.session, self.clock()
+        reading = session.sensor_adapter.read(max(0, session.second), now, now=now)
+        external = session.external_hr.status(now)
+        source = reading.field_sources.heart_rate
+        return {"mode": self.sensor_settings.mode, "session_id": session.control.session_id,
+            "effective_data_source": reading.data_source,
+            "sensor_status": "fallback" if reading.stale_reason else "active",
+            "stale_reason": reading.stale_reason, "ttl_sec": self.sensor_settings.ttl_sec,
+            "heart_rate": {"source": source, "fresh": True,
+                           "age_sec": external["age_sec"] if source == "external" else 0,
+                           "value": reading.heart_rate},
+            "resp_rate": {"source": "simulated", "fresh": True, "age_sec": 0, "value": reading.resp_rate},
+            "external_heart_rate": external,
+            "last_consumed": session.last_consumed_reading.model_dump() if session.last_consumed_reading else None}
 
     def cancel_pending(self):
         if hasattr(self.session.controller, "cancel"):
