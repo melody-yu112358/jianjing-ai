@@ -1,0 +1,73 @@
+{
+  "additionalProperties": false,
+  "description": "Identical validated result for every controller implementation.",
+  "properties": {
+    "stage": {
+      "enum": [
+        "assess",
+        "guided_breathing",
+        "settling",
+        "switch_method",
+        "fade_out",
+        "end"
+      ],
+      "title": "Stage",
+      "type": "string"
+    },
+    "action": {
+      "enum": [
+        "continue_breathing",
+        "slow_down",
+        "reduce_stimulation",
+        "switch_to_natural_breathing",
+        "switch_to_grounding",
+        "fade_out",
+        "end"
+      ],
+      "title": "Action",
+      "type": "string"
+    },
+    "inhale_sec": {
+      "minimum": 0,
+      "title": "Inhale Sec",
+      "type": "number"
+    },
+    "exhale_sec": {
+      "minimum": 0,
+      "title": "Exhale Sec",
+      "type": "number"
+    },
+    "visual_intensity": {
+      "maximum": 1,
+      "minimum": 0,
+      "title": "Visual Intensity",
+      "type": "number"
+    },
+    "audio_intensity": {
+      "maximum": 1,
+      "minimum": 0,
+      "title": "Audio Intensity",
+      "type": "number"
+    },
+    "message": {
+      "title": "Message",
+      "type": "string"
+    },
+    "reason": {
+      "title": "Reason",
+      "type": "string"
+    }
+  },
+  "required": [
+    "stage",
+    "action",
+    "inhale_sec",
+    "exhale_sec",
+    "visual_intensity",
+    "audio_intensity",
+    "message",
+    "reason"
+  ],
+  "title": "RitualDecision",
+  "type": "object"
+}

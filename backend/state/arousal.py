@@ -3,9 +3,10 @@ from collections import deque
 from statistics import mean, pstdev
 
 from backend.models import SelfReport, Signals, State
+from backend.config import STATE_CONFIG, StateConfig
+from backend.state.classification import StateClassifier
 
-INITIAL = {"mind_racing": 0.78, "body_tense": 0.74,
-           "tired_but_awake": 0.62, "already_sleepy": 0.38}
+INITIAL = STATE_CONFIG.priors
 
 
 def clamp(value: float) -> float:
@@ -16,37 +17,52 @@ class StateEngine:
     BASELINE_SIZE = 10
     WINDOW_SIZE = 10
 
-    def __init__(self, self_report: SelfReport):
-        self.initial = INITIAL[self_report]
+    def __init__(self, self_report: SelfReport, config: StateConfig = STATE_CONFIG):
+        self.config = config
+        self.self_report = self_report
+        self.initial = config.priors[self_report]
+        self.classifier = StateClassifier(config)
         self.baseline_samples: list[Signals] = []
         self.baseline: Signals | None = None
-        self.window: deque[Signals] = deque(maxlen=self.WINDOW_SIZE)
-        self.history: deque[float] = deque(maxlen=11)
+        self.window: deque[Signals] = deque(maxlen=config.rolling_samples)
+        self.history: deque[float] = deque(maxlen=config.trend_seconds + 1)
 
     @property
     def ready(self) -> bool:
         return self.baseline is not None
 
-    def update(self, signal: Signals) -> State:
+    def update(self, signal: Signals, *, intervention_seconds: int = 0,
+               discomfort: bool = False) -> State:
+        cfg = self.config
         self.window.append(signal)
         if not self.ready:
             self.baseline_samples.append(signal)
-            if len(self.baseline_samples) == self.BASELINE_SIZE:
+            if len(self.baseline_samples) == cfg.baseline_samples:
                 self.baseline = Signals(
                     heart_rate=mean(s.heart_rate for s in self.baseline_samples),
                     resp_rate=mean(s.resp_rate for s in self.baseline_samples),
                 )
         if not self.ready:
-            return State(arousal=self.initial, stability=0, trend="flat")
+            return self.classifier.classify(arousal=self.initial, stability=0, trend="flat",
+                hr_delta=0, resp_delta=0, resp_std=0, ready=False, trend_ready=False,
+                self_report=self.self_report, initial_arousal=self.initial,
+                intervention_seconds=intervention_seconds, discomfort=discomfort)
         hr = [s.heart_rate for s in self.window]
         resp = [s.resp_rate for s in self.window]
         # Relative to this session, anchored to a subjective demo prior.
-        arousal = clamp(self.initial + 0.35 * (mean(hr) - self.baseline.heart_rate) / 15
-                        + 0.35 * (mean(resp) - self.baseline.resp_rate) / 6)
-        stability = clamp(1 - 0.5 * pstdev(hr) / 2 - 0.5 * pstdev(resp) / 0.8)
+        hr_delta = mean(hr) - self.baseline.heart_rate
+        resp_delta = mean(resp) - self.baseline.resp_rate
+        arousal = clamp(self.initial + cfg.hr_weight * hr_delta / cfg.hr_delta_scale
+                        + cfg.resp_weight * resp_delta / cfg.resp_delta_scale)
+        stability = clamp(1 - 0.5 * pstdev(hr) / cfg.hr_std_scale - 0.5 * pstdev(resp) / cfg.resp_std_scale)
         self.history.append(arousal)
         delta = arousal - self.history[0]
         trend = "flat"
-        if len(self.history) == 11:
-            trend = "down" if delta < -0.015 else "up" if delta > 0.015 else "flat"
-        return State(arousal=arousal, stability=stability, trend=trend)
+        trend_ready = len(self.history) == cfg.trend_seconds + 1
+        if trend_ready:
+            trend = "down" if delta < -cfg.trend_delta else "up" if delta > cfg.trend_delta else "flat"
+        return self.classifier.classify(arousal=arousal, stability=stability, trend=trend,
+            hr_delta=hr_delta, resp_delta=resp_delta, resp_std=pstdev(resp),
+            ready=len(self.window) == cfg.rolling_samples, trend_ready=trend_ready,
+            self_report=self.self_report, initial_arousal=self.initial,
+            intervention_seconds=intervention_seconds, discomfort=discomfort)

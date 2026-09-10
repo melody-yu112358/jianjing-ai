@@ -4,12 +4,12 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.api.websocket import router
-from backend.models import DemoRequest, DemoStatus, Frame
+from backend.models import DemoRequest, DemoStatus, FeedbackRequest, Frame
 from backend.session import DemoRuntime
 
 
 def create_app() -> FastAPI:
-    app = FastAPI(title="Jianjing Backend MVP", version="1.0.0",
+    app = FastAPI(title="Jianjing Backend MVP", version="1.1.0",
                   description="Simulated signals and prototype interaction indices; not medical diagnosis.")
     app.state.demo = DemoRuntime()
     origins = os.getenv("CORS_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173")
@@ -28,6 +28,10 @@ def create_app() -> FastAPI:
     @app.post("/api/demo", response_model=DemoStatus)
     async def set_demo(config: DemoRequest):
         return app.state.demo.reset(config)
+
+    @app.post("/api/feedback", response_model=Frame)
+    async def feedback(event: FeedbackRequest):
+        return app.state.demo.report_discomfort()
 
     @app.get("/api/schema/state")
     async def state_schema():

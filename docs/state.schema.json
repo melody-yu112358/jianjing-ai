@@ -24,12 +24,38 @@
           "minimum": 0,
           "title": "Exhale Sec",
           "type": "number"
+        },
+        "action": {
+          "enum": [
+            "continue_breathing",
+            "slow_down",
+            "reduce_stimulation",
+            "switch_to_natural_breathing",
+            "switch_to_grounding",
+            "fade_out",
+            "end"
+          ],
+          "title": "Action",
+          "type": "string"
+        },
+        "audio_intensity": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Audio Intensity",
+          "type": "number"
+        },
+        "reason": {
+          "title": "Reason",
+          "type": "string"
         }
       },
       "required": [
         "stage",
         "inhale_sec",
-        "exhale_sec"
+        "exhale_sec",
+        "action",
+        "audio_intensity",
+        "reason"
       ],
       "title": "Ritual",
       "type": "object"
@@ -78,12 +104,40 @@
           ],
           "title": "Trend",
           "type": "string"
+        },
+        "state_class": {
+          "enum": [
+            "activated",
+            "settling",
+            "stable",
+            "not_responding",
+            "discomfort",
+            "ready_to_disengage"
+          ],
+          "title": "State Class",
+          "type": "string"
+        },
+        "confidence": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Confidence",
+          "type": "number"
+        },
+        "reason_codes": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Reason Codes",
+          "type": "array"
         }
       },
       "required": [
         "arousal",
         "stability",
-        "trend"
+        "trend",
+        "state_class",
+        "confidence",
+        "reason_codes"
       ],
       "title": "State",
       "type": "object"

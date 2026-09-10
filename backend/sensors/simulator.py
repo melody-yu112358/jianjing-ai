@@ -10,7 +10,7 @@ DATA_DIR = Path(__file__).resolve().parents[2] / "data"
 
 class Simulator:
     def __init__(self, scenario: Scenario, self_report: SelfReport | None = None):
-        if scenario not in ("calming", "not_responding"):
+        if scenario not in ("calming", "not_responding", "already_sleepy"):
             raise ValueError("Unknown scenario")
         data = json.loads((DATA_DIR / f"demo_{scenario}.json").read_text(encoding="utf-8"))
         self.scenario = scenario
