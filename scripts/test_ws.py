@@ -13,7 +13,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from backend.models import Frame
 
 
-async def collect(base: str, scenario: str, report: str, samples: int):
+async def collect(base: str, scenario: str, report: str | None, samples: int):
     async with httpx.AsyncClient(trust_env=False) as client:
         response = await client.post(base + "/api/demo", json={"scenario": scenario, "self_report": report})
         response.raise_for_status()
@@ -26,7 +26,9 @@ async def collect(base: str, scenario: str, report: str, samples: int):
             arrivals.append(time.monotonic())
             print(f"{scenario:14} t={i:3} HR={frame.signals.heart_rate:5.1f} "
                   f"RESP={frame.signals.resp_rate:4.1f} arousal={frame.state.arousal:.3f} "
-                  f"trend={frame.state.trend:4} stage={frame.ritual.stage}", flush=True)
+                  f"trend={frame.state.trend:4} class={frame.state.state_class} "
+                  f"confidence={frame.state.confidence:.3f} stage={frame.ritual.stage} "
+                  f"action={frame.ritual.action}", flush=True)
     gaps = [b - a for a, b in zip(arrivals, arrivals[1:])]
     assert all(b.timestamp > a.timestamp for a, b in zip(frames, frames[1:])), "Timestamp did not increase"
     if gaps:
@@ -58,8 +60,8 @@ async def main(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--base-url", default="http://127.0.0.1:8000")
-    parser.add_argument("--scenario", choices=["calming", "not_responding"], default="calming")
-    parser.add_argument("--self-report", choices=["mind_racing", "body_tense", "tired_but_awake", "already_sleepy"], default="mind_racing")
+    parser.add_argument("--scenario", choices=["calming", "not_responding", "already_sleepy"], default="calming")
+    parser.add_argument("--self-report", choices=["mind_racing", "body_tense", "tired_but_awake", "already_sleepy"])
     parser.add_argument("--samples", type=int, default=60)
     parser.add_argument("--verify", action="store_true")
     args = parser.parse_args()

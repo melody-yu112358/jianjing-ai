@@ -1,0 +1,11 @@
+{
+  "scenario": "already_sleepy",
+  "self_report": "already_sleepy",
+  "description": "Synthetic calm-at-start demo; no mandatory breathing course.",
+  "keyframes": [
+    {"second": 0, "heart_rate": 70, "resp_rate": 11, "jitter": 0.08},
+    {"second": 10, "heart_rate": 70, "resp_rate": 11, "jitter": 0.08},
+    {"second": 40, "heart_rate": 69.5, "resp_rate": 10.8, "jitter": 0.06},
+    {"second": 180, "heart_rate": 69, "resp_rate": 10.5, "jitter": 0.05}
+  ]
+}
