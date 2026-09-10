@@ -25,7 +25,7 @@ router = APIRouter(route_class=SensorRoute)
 async def heart_rate(value: HeartRateInput, request: Request):
     runtime = request.app.state.demo
     try:
-        runtime.session.external_hr.accept(value)
+        runtime.accept_heart_rate(value)
     except InputRejected as error:
         raise HTTPException(status_code=error.status_code, detail=error.reason) from error
     return {"accepted": True, **runtime.sensor_status()}
@@ -34,3 +34,8 @@ async def heart_rate(value: HeartRateInput, request: Request):
 @router.get("/api/sensor/status")
 async def sensor_status(request: Request):
     return request.app.state.demo.sensor_status()
+
+
+@router.get("/api/session/summary")
+async def session_summary(request: Request):
+    return request.app.state.demo.session_summary()

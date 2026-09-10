@@ -1,5 +1,21 @@
 # Backend MVP 本地验证记录
 
+## Phase 4B：手机PPG短测原型
+
+基于最新main `a9407f6`，分支`feature/phone-ppg`。**物理手机未实测，Apple Watch未实接**。本次交付算法、独立采集页面和接入接口，不能将其描述为已经完成真实设备闭环验收。
+
+- `python -m pytest -q`：**180 passed**，原146项测试文件未修改，新增34项；原两条第三方弃用提示保留。
+- `node --test tools/ppg-demo/test_capture.cjs`：**6 passed**，模拟DOM/摄像头，不访问真实硬件。验证授权拒绝、torch不可用时释放摄像头、等待授权期间取消、751帧25秒采样/先关摄像头再提交、未前测时拒绝后测、空错误信息的可读提示。
+- Python与Node合计**186项**通过。PPG已知45/60/72/90/120/150/180 BPM合成波形估计误差≤1.3 BPM；20/25/30fps、温和噪声和漂移通过；无覆盖、饱和、弱信号、随机噪声、断帧、频率改变和范围外主频被拒绝。这不是设备准确度指标。
+
+`python scripts/test_ppg_ws.py`启动实际Uvicorn，按真实时间等待两个短测窗口，提交合成RGB均值，HTTP与双WebSocket联调退出码0：**56帧v1 + 56帧v2**，平均间隔**1.014秒**。90/72 BPM有效结果被引擎消费，field_sources=phone_ppg，Resp模拟，v2.data_source=mixed；无效波形不写入、TTL到期回退、summary保存前后值及reset清空均通过。
+
+桌面内嵌浏览器实际加载了独立页面、读取summary，核对了未前测时的后测提示及布局；启动摄像头未获得可用采集流，没有生成物理PPG样本。由此发现浏览器可能返回空错误信息，已补充可读fallback，并通过Node回归。浏览器页面加载或模拟摄像头单测均不能替代手机后置镜头+闪光灯验收。
+
+State Engine、Classification、Rule/LLM Controller、Visual Mapper、原模拟轨迹和三份消息/决策schema保持不变。没有新依赖、视频保存、HRV或真实呼吸。short-window BPM仅在原TTL内有效，期间模拟回退；混合baseline变化不可解释为疗效。
+
+Apple Watch仅完成继承现有缓存接口的可选Adapter和官方原生bridge设计，没有原生App构建、HealthKit授权或设备连接。具体手机支持、误差、舒适度、可信HTTPS/WSS部署与实际设备链路仍待执行，见PHONE_PPG.md验收清单。
+
 ## Phase 4A：Sensor Adapter与混合信号
 
 基于main `f6c8ae1`，分支`feature/sensor-adapters`。`python -m pytest -q`：**146 passed**，原104项文件未修改，新增42项；原有两条第三方弃用提示保留。无新增依赖，`pip check`和`git diff --check`通过。

@@ -3,8 +3,9 @@ from dataclasses import dataclass
 import math
 import os
 import time
+from typing import Literal
 
-from pydantic import Field
+from pydantic import Field, model_validator
 
 from backend.models import Model
 from backend.sensors.base import FieldSources, SensorAdapter, SensorReading
@@ -34,6 +35,24 @@ class HeartRateInput(Model):
     timestamp: float = Field(ge=0, strict=True)
     heart_rate: float = Field(ge=30, le=220, strict=True)
     session_id: str | None = Field(default=None, min_length=1, max_length=128)
+    source: Literal["external", "phone_ppg", "apple_watch"] = "external"
+    valid: bool = Field(default=True, strict=True)
+    signal_quality: float | None = Field(default=None, ge=0, le=1, strict=True)
+    duration_sec: float | None = Field(default=None, ge=0, le=60, strict=True)
+    measurement_phase: Literal["pre", "post"] | None = None
+
+    @model_validator(mode="after")
+    def quality_gate(self):
+        if not self.valid:
+            raise ValueError("Invalid measurements cannot enter the HR buffer")
+        if self.source == "phone_ppg":
+            if self.signal_quality is None or self.signal_quality < 0.65:
+                raise ValueError("phone_ppg requires signal_quality >= 0.65")
+            if self.duration_sec is None or not 20 <= self.duration_sec <= 30.5:
+                raise ValueError("phone_ppg requires a 20–30 second measurement")
+            if not self.session_id or not self.measurement_phase or not 45 <= self.heart_rate <= 180:
+                raise ValueError("phone_ppg requires session, phase and bounded BPM")
+        return self
 
 
 class InputRejected(ValueError):
@@ -81,7 +100,8 @@ class ExternalHeartRateAdapter(SensorAdapter):
             reason = "external_expired"
         return {"fresh": reason is None, "age_sec": round(age, 3), "stale_reason": reason,
                 "timestamp": self.latest.timestamp, "received_at": self.received_at,
-                "heart_rate": self.latest.heart_rate}
+                "heart_rate": self.latest.heart_rate, "source": self.latest.source,
+                "signal_quality": self.latest.signal_quality, "duration_sec": self.latest.duration_sec}
 
     def read(self, second: int, timestamp: float, *, now: float | None = None) -> SensorReading:
         status = self.status(timestamp if now is None else now)
@@ -90,5 +110,5 @@ class ExternalHeartRateAdapter(SensorAdapter):
             reason = "external_unavailable_at_tick"
         return SensorReading(timestamp=timestamp,
             heart_rate=self.latest.heart_rate if reason is None else None,
-            field_sources=FieldSources(heart_rate="external" if reason is None else "unknown", resp_rate="unknown"),
+            field_sources=FieldSources(heart_rate=self.latest.source if reason is None else "unknown", resp_rate="unknown"),
             stale_reason=reason)

@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from backend.api.websocket import router
 from backend.api.control import router as control_router
 from backend.api.sensor import router as sensor_router
+from backend.api.ppg import router as ppg_router
 from backend.models import DemoRequest, DemoStatus, FeedbackRequest, Frame
 from backend.session import DemoRuntime
 
@@ -26,6 +27,7 @@ def create_app(settings=None, sensor_settings=None) -> FastAPI:
     app.include_router(router)
     app.include_router(control_router)
     app.include_router(sensor_router)
+    app.include_router(ppg_router)
 
     @app.get("/health")
     async def health():
