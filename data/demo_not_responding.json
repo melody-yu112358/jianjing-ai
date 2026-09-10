@@ -1,0 +1,12 @@
+{
+  "scenario": "not_responding",
+  "self_report": "body_tense",
+  "description": "Synthetic interaction demo; unchanged or slightly rising signals.",
+  "keyframes": [
+    {"second": 0, "heart_rate": 86, "resp_rate": 16, "jitter": 1.0},
+    {"second": 10, "heart_rate": 86, "resp_rate": 16, "jitter": 1.0},
+    {"second": 40, "heart_rate": 87, "resp_rate": 16.5, "jitter": 1.1},
+    {"second": 90, "heart_rate": 89, "resp_rate": 17, "jitter": 1.2},
+    {"second": 180, "heart_rate": 90, "resp_rate": 17.5, "jitter": 1.2}
+  ]
+}

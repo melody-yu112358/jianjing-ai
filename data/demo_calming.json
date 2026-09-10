@@ -1,0 +1,13 @@
+{
+  "scenario": "calming",
+  "self_report": "mind_racing",
+  "description": "Synthetic interaction demo; not a measured treatment response.",
+  "keyframes": [
+    {"second": 0, "heart_rate": 86, "resp_rate": 16, "jitter": 1.0},
+    {"second": 10, "heart_rate": 86, "resp_rate": 16, "jitter": 1.0},
+    {"second": 40, "heart_rate": 80, "resp_rate": 13, "jitter": 0.65},
+    {"second": 70, "heart_rate": 75, "resp_rate": 11, "jitter": 0.3},
+    {"second": 110, "heart_rate": 71, "resp_rate": 10, "jitter": 0.1},
+    {"second": 180, "heart_rate": 70, "resp_rate": 10, "jitter": 0.05}
+  ]
+}

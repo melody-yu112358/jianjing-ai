@@ -1,0 +1,157 @@
+{
+  "$defs": {
+    "Ritual": {
+      "additionalProperties": false,
+      "properties": {
+        "stage": {
+          "enum": [
+            "assess",
+            "guided_breathing",
+            "settling",
+            "switch_method",
+            "fade_out",
+            "end"
+          ],
+          "title": "Stage",
+          "type": "string"
+        },
+        "inhale_sec": {
+          "minimum": 0,
+          "title": "Inhale Sec",
+          "type": "number"
+        },
+        "exhale_sec": {
+          "minimum": 0,
+          "title": "Exhale Sec",
+          "type": "number"
+        }
+      },
+      "required": [
+        "stage",
+        "inhale_sec",
+        "exhale_sec"
+      ],
+      "title": "Ritual",
+      "type": "object"
+    },
+    "Signals": {
+      "additionalProperties": false,
+      "properties": {
+        "heart_rate": {
+          "exclusiveMinimum": 0,
+          "title": "Heart Rate",
+          "type": "number"
+        },
+        "resp_rate": {
+          "exclusiveMinimum": 0,
+          "title": "Resp Rate",
+          "type": "number"
+        }
+      },
+      "required": [
+        "heart_rate",
+        "resp_rate"
+      ],
+      "title": "Signals",
+      "type": "object"
+    },
+    "State": {
+      "additionalProperties": false,
+      "properties": {
+        "arousal": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Arousal",
+          "type": "number"
+        },
+        "stability": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Stability",
+          "type": "number"
+        },
+        "trend": {
+          "enum": [
+            "up",
+            "down",
+            "flat"
+          ],
+          "title": "Trend",
+          "type": "string"
+        }
+      },
+      "required": [
+        "arousal",
+        "stability",
+        "trend"
+      ],
+      "title": "State",
+      "type": "object"
+    },
+    "Visual": {
+      "additionalProperties": false,
+      "properties": {
+        "intensity": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Intensity",
+          "type": "number"
+        },
+        "noise": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Noise",
+          "type": "number"
+        },
+        "speed": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Speed",
+          "type": "number"
+        }
+      },
+      "required": [
+        "intensity",
+        "noise",
+        "speed"
+      ],
+      "title": "Visual",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "timestamp": {
+      "description": "Unix UTC seconds, not milliseconds",
+      "minimum": 0,
+      "title": "Timestamp",
+      "type": "number"
+    },
+    "signals": {
+      "$ref": "#/$defs/Signals"
+    },
+    "state": {
+      "$ref": "#/$defs/State"
+    },
+    "ritual": {
+      "$ref": "#/$defs/Ritual"
+    },
+    "visual": {
+      "$ref": "#/$defs/Visual"
+    },
+    "message": {
+      "title": "Message",
+      "type": "string"
+    }
+  },
+  "required": [
+    "timestamp",
+    "signals",
+    "state",
+    "ritual",
+    "visual",
+    "message"
+  ],
+  "title": "Frame",
+  "type": "object"
+}
