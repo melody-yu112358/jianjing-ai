@@ -1,18 +1,23 @@
 <!doctype html>
 <html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>渐静 · 手机心率短测工具</title>
-<style>body{font:16px/1.7 system-ui,sans-serif;background:#102027;color:#edf4f4;margin:0;padding:24px}main{max-width:640px;margin:auto}button{font:inherit;padding:12px 18px;margin:6px 6px 6px 0;border:0;border-radius:8px;background:#afe2d4;color:#102027}button:disabled{opacity:.4}#stop{background:#ffd6bd}video{width:128px;height:128px;object-fit:cover;border-radius:12px}progress{width:100%}pre{white-space:pre-wrap;overflow-wrap:anywhere;font-size:13px}small{color:#c0ced0}#status{min-height:3em}a{color:#afe2d4}</style></head>
+<style>body{font:16px/1.7 system-ui,sans-serif;background:#102027;color:#edf4f4;margin:0;padding:24px}main{max-width:640px;margin:auto}button{font:inherit;padding:12px 18px;margin:6px 6px 6px 0;border:0;border-radius:8px;background:#afe2d4;color:#102027}button:disabled{opacity:.4}#stop{background:#ffd6bd}video{display:block;width:100%;height:200px;object-fit:contain;border-radius:12px;background:#071216}.camera-preview{margin:12px 0}.camera-preview figcaption{font-size:13px;color:#c0ced0;margin:6px 0}details{margin:16px 0}summary{cursor:pointer;color:#afe2d4}progress{width:100%}pre{white-space:pre-wrap;overflow-wrap:anywhere;font-size:13px}small{color:#c0ced0}#status{min-height:3em}a{color:#afe2d4}</style></head>
 <body><main><h1>手机心率短测</h1>
 <p>独立采集工具 · 每次约 25 秒。手指轻盖后置镜头与闪光灯，保持不动，不要用力按压。发热或不适时立即停止。</p>
+<figure class="camera-preview"><figcaption>实时摄像头预览 · PPG 实验原型，尚未稳定获得有效心率</figcaption>
+<video id="camera" autoplay muted playsinline aria-label="摄像头预览"></video><canvas id="roi" width="32" height="32" hidden></canvas>
+<progress id="progress" max="25" value="0" aria-label="测量进度"></progress>
+<figcaption>开始采集后显示真实镜头画面；停止或测量结束后关闭摄像头与闪光灯。</figcaption></figure>
 <p><small>需要支持摄像头和闪光灯控制的手机浏览器，以及可信 HTTPS。同一设备、姿势和光线下完成前后测；本工具不是医疗设备，不判断入睡或疗效。</small></p>
 <label>预热 <select id="warmup"><option value="1.5">1.5 秒（旧版对照）</option><option value="3" selected>3 秒</option><option value="5">5 秒</option></select></label><br>
 <button id="reset">新会话 / 清空记录</button><button id="pre">开始前测</button><button id="enter">进入 / 重连仪式</button><button id="post">开始后测</button><button id="stop" disabled>停止采集</button>
 <p id="status" role="status" aria-live="polite">先启动 mixed 模式。前测完成后再连接正式视觉页面；后测请在仪式结束前预留约 25 秒。</p>
 <p id="ritual-status" role="status">流程：前测 → 进入仪式 → 后测 → 刷新会话记录。后测不会重置仪式。</p>
+<details><summary>设备诊断与校准详情（点击展开）</summary>
 <button id="diagnose">刷新设备诊断</button><pre id="diagnostics" aria-label="设备诊断"></pre>
 <p><small>诊断每秒刷新。TTL 过期后当前来源回退 simulated；历史前后测记录仍保留。摄像头能力须授权后检测，未检测不代表支持。</small></p>
-<video id="camera" autoplay muted playsinline aria-label="摄像头预览"></video><canvas id="roi" width="32" height="32" hidden></canvas>
-<progress id="progress" max="25" value="0" aria-label="测量进度"></progress>
+</details>
+
 <p id="result"></p><button id="export">导出本次校准 JSON</button><p><small>只保留最近一次完整采样在页面内存中。主动导出含 RGB 均值、ROI 统计、设备设置和拒绝指标，不含图像；分享前请检查内容。重新测量、重置或刷新将清除记录。预热时间为待实测比较的工程选项，不保证 accepted。</small></p><button id="summary">刷新会话记录</button><pre id="details"></pre>
 <p><small>摄像头图像只在本机处理。提交的仅为 ROI 颜色均值时间序列，后端估算心率后立即丢弃序列，不保存视频。采集期间请保持页面在前台。质量不足时不会更新心率。</small></p>
 <script type="module" src="./app.js"></script></main></body></html>
