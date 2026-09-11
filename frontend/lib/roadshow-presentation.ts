@@ -23,7 +23,7 @@ export function presentationAt(seconds:number,report:SelfReport='mind_racing'){
  const raw=roadshowPacket(t,'roadshow-local',Math.floor(t*4),1,report);
  const stage=raw.payload.guidance.stage;
  // Artistic presentation only: never map an interaction class to a diagnostic brain region.
- const mode=stage==='guided_breathing'?'pulse':stage==='switch_method'?'storm':stage==='assess'?(sleepy?'serenity':'fold'):stage==='settling'?'ripple':'serenity';
+ const mode=stage==='guided_breathing'?'pulse':stage==='switch_method'?'ripple':stage==='assess'?(sleepy?'serenity':'fold'):stage==='settling'?'ripple':'serenity';
  raw.payload.visual={...raw.payload.visual,mode,transition_sec:stage==='fade_out'?1.2:3,
   particle_density:stage==='fade_out'?raw.payload.visual.intensity:.35,
   glow:stage==='fade_out'?raw.payload.visual.intensity:.55};
