@@ -41,8 +41,8 @@ export function FilamentLife(props:{frame:ControlFrame;playing:boolean;gentle:bo
   const coreGeo=new THREE.PlaneGeometry(2.6,2.6),coreMat=material(coreVertex,coreFragment),core=new THREE.Mesh(coreGeo,coreMat);core.position.set(.1,0,-.25);
   const group=new THREE.Group();group.rotation.set(.12,0,-.20);group.add(core,lines,outer,motes);for(const obj of [core,lines,outer,motes])obj.frustumCulled=false;
   const scene=new THREE.Scene();scene.add(group);const camera=new THREE.PerspectiveCamera(38,1,.1,30);
-  const composer=new EffectComposer(renderer),bloom=new UnrealBloomPass(new THREE.Vector2(256,256),.65,.7,.28),output=new OutputPass();
-  composer.addPass(new RenderPass(scene,camera));composer.addPass(bloom);composer.addPass(output);
+  const composer=new EffectComposer(renderer),output=new OutputPass();
+  composer.addPass(new RenderPass(scene,camera));composer.addPass(output);
   const resize=()=>{const w=el.clientWidth,h=el.clientHeight;if(!w||!h)return;renderer.setSize(w,h);composer.setSize(w,h);camera.aspect=w/h;camera.position.z=Math.max(4.7,4.1/camera.aspect);camera.updateProjectionMatrix();};
   const observer=new ResizeObserver(resize);observer.observe(el);resize();
   let raf=0,last=performance.now(),lastPaint=0,speed=v.speed,lineSpeed=v.line_speed,particleSpeed=v.particle_speed;
@@ -63,7 +63,7 @@ export function FilamentLife(props:{frame:ControlFrame;playing:boolean;gentle:bo
    composer.render();
   }
   raf=requestAnimationFrame(tick);const lost=(e:Event)=>{e.preventDefault();cancelAnimationFrame(raf);setFailed(true);};renderer.domElement.addEventListener('webglcontextlost',lost);
-  return()=>{cancelAnimationFrame(raf);observer.disconnect();renderer.domElement.removeEventListener('webglcontextlost',lost);for(const g of [lineGeo,outerGeo,moteGeo,coreGeo])g.dispose();for(const m of [lineMat,moteMat,coreMat])m.dispose();bloom.dispose();output.dispose();composer.dispose();renderer.dispose();renderer.domElement.remove();};
+  return()=>{cancelAnimationFrame(raf);observer.disconnect();renderer.domElement.removeEventListener('webglcontextlost',lost);for(const g of [lineGeo,outerGeo,moteGeo,coreGeo])g.dispose();for(const m of [lineMat,moteMat,coreMat])m.dispose();output.dispose();composer.dispose();renderer.dispose();renderer.domElement.remove();};
  },[attempt]);
  return <div className="particle-canvas filament-canvas" ref={host} role="img" aria-label="双层光丝生命体：内层随状态流动，透明外层随呼吸引导舒展和回收">{failed&&<div className="webgl-fallback"><p>动态画面暂时不可用</p><span>仍可跟随文字呼吸。</span><button onClick={()=>setAttempt(n=>n+1)}>重新加载画面</button></div>}</div>;
 }

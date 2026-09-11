@@ -91,3 +91,107 @@ footer.light-bottom{position:relative;display:grid;grid-template-columns:1fr aut
 /* Explainability extends the roadshow surface without changing its visual engine. */
 .tonight-entry{display:flex;flex-wrap:wrap;align-items:center;gap:20px;padding:20px 0 28px;border-bottom:1px solid #ffffff20;margin-bottom:24px}.tonight-entry h2{font-size:21px;margin:0}.tonight-entry p{font-size:16px;color:#bac9dd}.tonight-entry>[data-slot=select-trigger]{width:220px}.tonight-summary{flex-basis:100%;padding:18px 22px;background:#25304466;border:1px solid #a8b6cb33;border-radius:12px}.tonight-summary h3{font-size:20px;margin-top:0}.tonight-summary small{color:#a8b6cb;font-size:14px}.primary-button:disabled{opacity:.45;cursor:not-allowed}.baseline-overview,.tonight-plan{border-top:1px solid #ffffff18;padding-top:16px;margin-top:18px}.baseline-overview h3,.tonight-plan h3{font-size:18px;font-weight:500;margin:0 0 10px}.baseline-overview small,.decision-window small{font-size:14px;line-height:1.6;color:#a8b6cb}.baseline-overview table{border-collapse:collapse;width:100%;font-size:15px;margin-top:10px}.baseline-overview th,.baseline-overview td{padding:7px 3px;text-align:right}.baseline-overview th:first-child{text-align:left;font-weight:400}.baseline-overview svg{width:100%;max-height:65px}.baseline-overview p{font-size:14px;line-height:1.6;color:#cbb39f}.state-understanding dl{display:grid;grid-template-columns:1fr 1fr;gap:10px}.state-understanding dl>div{display:flex;justify-content:space-between;gap:8px}.state-understanding dt{color:#a8b6cb;font-size:14px}.state-understanding dd{margin:0;font-size:15px}.explanation-reasons,.decision-trace{padding-left:20px;font-size:14px;line-height:1.8;color:#b7c5d5;overflow-wrap:anywhere}.decision-trace li{padding:5px 0;border-bottom:1px solid #ffffff12}.decision-message{font-size:16px;line-height:1.7}.response-summary{font-size:14px;line-height:1.7;color:#a8b6cb}.connection-form{flex-wrap:wrap}.tonight-plan .decision-path li{line-height:1.7}.decision-window details{margin-top:16px}.roadshow-app .insights{min-width:0}@media(max-width:520px){.tonight-entry>[data-slot=select-trigger]{width:100%}.state-understanding dl{grid-template-columns:1fr}.tonight-summary{padding:14px}}
 .reference-details{margin-top:14px;padding:10px 0;border-bottom:1px solid #ffffff18;color:#b7c5d5;font-size:14px;line-height:1.7}.reference-details>summary{cursor:pointer}
+/* The original visual engine is unchanged; only its available layout space grows. */
+.roadshow-app .experience{display:flex;flex-direction:column;align-self:stretch;min-height:0}
+.roadshow-app .scene-top{flex:0 0 auto}
+.roadshow-app .landscape{flex:1 1 auto;height:auto;min-height:580px}
+.aligned-experience-bottom{flex:0 0 auto;margin-top:auto;padding-top:12px}
+.aligned-experience-bottom .transport{margin-bottom:0;padding-bottom:0}
+.roadshow-app.immersive .landscape{min-height:70vh}
+.roadshow-insights-panel{min-width:0}
+.roadshow-insights-panel .compact-title{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:12px}
+.roadshow-insights-panel .compact-title h2{font-weight:500;font-size:19px;margin:0}
+.roadshow-insights-panel .compact-title>span{font-size:13px;color:#b1d4ce;white-space:nowrap}
+.roadshow-insights-panel .paired-signals{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px}
+.roadshow-insights-panel .signal-chart{padding:15px 10px 9px;background:#19233385;border:1px solid #7589a344;border-radius:10px;min-width:0}
+.roadshow-insights-panel .signal-chart-title{display:block;font-size:16px;color:#e3edf7}
+.roadshow-insights-panel .signal-chart-title>span:first-child{gap:7px;white-space:nowrap}
+.roadshow-insights-panel .signal-chart-title svg{width:18px;height:18px;flex-shrink:0;margin:0}
+.roadshow-insights-panel .clear-reading{font-size:32px;line-height:1.15;letter-spacing:.2px;font-variant-numeric:tabular-nums;color:#f1f5fa;margin:13px 0 9px;white-space:nowrap}
+.roadshow-insights-panel .clear-reading small{font-size:13px;color:#b6c7da;margin-left:3px}
+.roadshow-insights-panel .signal-chart>svg{height:104px;margin:0;width:100%;overflow:visible}
+.roadshow-insights-panel .signal-chart text{font-size:19px;fill:#bccde0}
+.signal-update{animation:signal-update .45s ease-out}
+@keyframes signal-update{from{opacity:.45}to{opacity:.18}}
+.roadshow-insights-panel .ai-panel{margin-top:18px;padding:20px 22px;border:1px solid #b0b8d62e;border-radius:14px;background:linear-gradient(135deg,#222a3b95,#171e2c90)}
+.roadshow-insights-panel .ai-title{display:flex;align-items:center;gap:9px;margin-bottom:19px;color:#ecd0b7}
+.roadshow-insights-panel .ai-title svg{flex-shrink:0}
+.roadshow-insights-panel .ai-title h2{font-size:20px;font-weight:550;margin:0;color:#eef0f7}
+.roadshow-insights-panel .ai-title time{margin-left:auto;font-size:12px;color:#a8b9cf;white-space:nowrap}
+.roadshow-insights-panel h3{font-size:14px;font-weight:500;color:#d9c5b7;margin:0 0 9px}
+.roadshow-insights-panel .baseline-overview{display:flex;flex-direction:column;border:0;padding:0;margin:0}
+.roadshow-insights-panel .history-heading{display:flex;align-items:center;justify-content:space-between;gap:10px;order:0}
+.roadshow-insights-panel .history-heading small{font-size:12px;color:#b2bfd2;white-space:nowrap}
+.roadshow-insights-panel .recent-history{order:1;width:100%;height:58px;display:block}
+.roadshow-insights-panel .history-legend{order:2;display:flex;justify-content:flex-end;gap:14px;font-size:12px;margin-bottom:9px}
+.roadshow-insights-panel .history-legend span:first-child{color:#f2bb99}
+.roadshow-insights-panel .history-legend span:last-child{color:#94d5ed}
+.roadshow-insights-panel .baseline-overview table{order:3;width:100%;border-collapse:collapse;font-size:14px;margin:0}
+.roadshow-insights-panel .baseline-overview p{order:4}
+.roadshow-insights-panel .baseline-overview th,.roadshow-insights-panel .baseline-overview td{padding:9px 0;text-align:right;border-bottom:1px solid #ffffff0d}
+.roadshow-insights-panel .baseline-overview th:first-child{text-align:left;font-weight:400}
+.roadshow-insights-panel .baseline-overview thead th{font-size:12px;color:#b3c1d4;font-weight:400}
+.roadshow-insights-panel .baseline-overview tbody td:last-child{font-size:20px}
+.roadshow-insights-panel .baseline-overview tbody tr:first-child td:last-child{color:#f2bb99}
+.roadshow-insights-panel .baseline-overview tbody tr:last-child td:last-child{color:#94d5ed}
+.roadshow-insights-panel .report-tag{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:12px;color:#b2c1d4;margin:14px 0}
+.roadshow-insights-panel .report-tag strong{font-weight:400;color:#dce4ef;margin-left:5px}
+.roadshow-insights-panel .assessment{padding:13px 14px;background:#d8bb9c09;border-left:2px solid #d8bb9c77;border-radius:0 7px 7px 0}
+.roadshow-insights-panel .assessment p{font-size:14px;line-height:1.8;color:#d1dbe9;margin:0}
+.roadshow-insights-panel .assessment p+p{margin-top:8px}
+.roadshow-insights-panel .tonight-plan{padding:16px 0 12px;margin:0;border-top:0;border-bottom:1px solid #ffffff13}
+.roadshow-insights-panel .plan-row{display:flex;align-items:stretch;gap:8px;padding:0;margin:0;list-style:none;font-size:12px;color:#b1bfd2}
+.roadshow-insights-panel .plan-row li{flex:1;min-width:0;display:flex;align-items:center;justify-content:center;text-align:center;line-height:1.6;padding:7px 6px;background:#ffffff04;border:1px solid #ffffff10;border-radius:6px}
+.roadshow-insights-panel .plan-row li:first-child{color:#eed4bd;border-color:#dbbda444;background:#dbbda40d}
+.roadshow-insights-panel .tonight-plan>p{font-size:13px;line-height:1.7;color:#adbed4;margin:8px 0 0}
+.roadshow-insights-panel .decision-proof{padding-top:14px}
+.roadshow-insights-panel .decision-proof>div{display:flex;gap:13px;font-size:13px;line-height:1.7;margin:5px 0}
+.roadshow-insights-panel .decision-proof>div>span{color:#b4c2d5;flex-shrink:0}
+.roadshow-insights-panel .decision-proof p{margin:0;color:#cdd7e5}
+.roadshow-insights-panel .decision-record{margin-top:13px;padding-top:14px;border-top:1px solid #ffffff13}
+.roadshow-insights-panel .decision-record>div{display:flex;gap:15px;align-items:baseline;margin:7px 0;font-size:13px}
+.roadshow-insights-panel .decision-record time{color:#a3b5cd;min-width:40px;white-space:nowrap}
+.roadshow-insights-panel .decision-record p{margin:0;color:#b3c2d6;line-height:1.7}
+.roadshow-insights-panel .decision-record .active p,.roadshow-insights-panel .decision-record .active time{color:#edccb0}
+.roadshow-insights-panel .decision-details{border-top:1px solid #ffffff13;margin-top:14px;padding-top:12px;font-size:13px;color:#acbfd5}
+.roadshow-insights-panel .decision-details .state-understanding{margin-top:12px}
+@media(max-width:1150px) and (min-width:851px){.roadshow-insights-panel .ai-panel{padding:18px 14px}.roadshow-insights-panel .signal-chart-title{font-size:14px}.roadshow-insights-panel .clear-reading{font-size:27px}.roadshow-insights-panel .clear-reading small{font-size:12px}}
+@media(max-width:850px){.roadshow-app .landscape{height:440px;min-height:0;flex:none}.aligned-experience-bottom{padding-top:0}.roadshow-app.immersive .landscape{height:65vh;min-height:0}}
+@media(max-width:380px){.roadshow-insights-panel .paired-signals{gap:8px}.roadshow-insights-panel .signal-chart{padding-inline:8px}.roadshow-insights-panel .clear-reading{font-size:27px}.roadshow-insights-panel .signal-chart-title{font-size:14px}.roadshow-insights-panel .ai-panel{padding:18px 14px}}
+@media(prefers-reduced-motion:reduce){.signal-update{animation:none}}
+
+/* Keep the original sphere at a bounded size inside the expanded space. */
+.roadshow-app .landscape{background:none}
+.roadshow-app .landscape .filament-canvas{width:min(100%,640px);height:min(100%,620px);inset:50% auto auto 50%;transform:translate(-50%,-50%)}
+
+/* Approved desktop presentation layout. */
+
+[data-slot="select-content"]{background:#172332!important;color:#e6edf6!important;border:1px solid #53647a!important;box-shadow:0 10px 30px #0005;z-index:100;isolation:isolate}
+[data-slot="select-item"]{min-height:36px;line-height:1.5;padding:8px 32px 8px 12px;position:relative}
+[data-slot="select-item"][data-highlighted]{background:#30435b!important;color:#fff!important}
+[data-slot="select-item-indicator"]{position:absolute;right:10px;width:16px;height:16px}
+
+
+.demo-seek{display:block;width:100%;height:18px;margin:0;accent-color:#c2cfe7;cursor:pointer}.demo-seek:focus-visible{outline:2px solid #b6dfd6;outline-offset:3px}
+
+@media(min-width:1000px){
+.roadshow-app{height:100dvh;max-width:none;padding:0 28px;display:flex;flex-direction:column}
+.roadshow-app .topbar{height:52px;min-height:42px}.roadshow-app .workspace{flex:1;min-height:0;padding:10px 0;grid-template-columns:minmax(0,1fr) minmax(540px,45%);gap:24px}
+.roadshow-app .tonight-entry{padding:8px 0;margin:0;gap:16px;min-height:52px}.tonight-entry h2{font-size:15px}.tonight-entry p,.tonight-entry .tonight-summary,.tonight-entry>.primary-button{display:none}
+.roadshow-app .experience,.roadshow-app .insights{height:100%;min-height:0}.roadshow-app .insights{padding-left:20px;align-self:stretch}
+.roadshow-app h1{font-size:23px}.roadshow-app .scene-top{padding:0}.roadshow-app .landscape,.roadshow-app.immersive .landscape{min-height:0;height:0;flex:1}.roadshow-app .landscape .filament-canvas{width:min(100%,600px);height:min(100%,570px)}
+.aligned-experience-bottom{padding-top:0}.roadshow-app .breath-guide{min-height:0;padding:12px 0}.roadshow-app .breath-guide p{font-size:14px;margin:5px 0 0}.roadshow-app .breath-label{font-size:19px}.roadshow-app .transport{padding-top:6px;flex-wrap:nowrap}.roadshow-app .timeline>div:first-child{font-size:12px}
+.roadshow-insights-panel{height:100%;display:flex;flex-direction:column}.roadshow-insights-panel .compact-title{margin-bottom:7px}.roadshow-insights-panel .compact-title h2{font-size:16px}
+.roadshow-insights-panel .signal-chart{padding:9px 12px}.roadshow-insights-panel .signal-chart-title{font-size:14px}.roadshow-insights-panel .clear-reading{font-size:27px;margin:5px 0}.roadshow-insights-panel .signal-chart>svg{height:60px}
+.roadshow-insights-panel .ai-panel{flex:1;min-height:0;margin-top:10px;padding:12px;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:auto auto auto auto 1fr auto;gap:5px 14px;align-content:start}
+.roadshow-insights-panel .ai-title{grid-column:1/-1;margin:0}.roadshow-insights-panel .ai-title h2{font-size:17px}
+.roadshow-insights-panel .baseline-overview{grid-column:1;grid-row:2/4}.roadshow-insights-panel .recent-history{height:35px}.roadshow-insights-panel .history-legend{margin:0;font-size:11px}.roadshow-insights-panel .baseline-overview th,.roadshow-insights-panel .baseline-overview td{padding:5px 0;font-size:12px}.roadshow-insights-panel .baseline-overview tbody td:last-child{font-size:17px}
+.roadshow-insights-panel .report-tag{grid-column:2;grid-row:2;margin:0;font-size:12px}.roadshow-insights-panel .assessment{grid-column:2;grid-row:3;padding:8px}.roadshow-insights-panel .assessment p{font-size:13px;line-height:1.5}.roadshow-insights-panel .assessment p+p{margin-top:5px}
+.roadshow-insights-panel h3{font-size:13px;margin-bottom:5px}.roadshow-insights-panel .tonight-plan{grid-column:1/-1;grid-row:4;padding:6px 0}.roadshow-insights-panel .tonight-plan>p{font-size:12px;line-height:1.5;margin:5px 0 0}.roadshow-insights-panel .plan-row li{padding:5px}
+.roadshow-insights-panel .decision-proof{grid-column:1;grid-row:5;padding-top:3px}.roadshow-insights-panel .decision-proof>div{font-size:12px;line-height:1.5;margin:4px 0;gap:8px}
+.roadshow-insights-panel .decision-record{grid-column:2;grid-row:5;padding-top:3px;margin:0;border:0}.roadshow-insights-panel .decision-record>div{font-size:12px;margin:4px 0;gap:8px}.roadshow-insights-panel .decision-record p{line-height:1.5}.roadshow-insights-panel .decision-record>div:not(:nth-last-child(-n+3)){display:none}
+.roadshow-insights-panel .decision-details{grid-column:1/-1;grid-row:6;font-size:12px;margin:0;padding-top:7px}.roadshow-app>footer{display:none}
+}
+.preview-dialog{background:#111b29;color:#dce5f3;border:1px solid #53647a;border-radius:14px;width:min(900px,90vw);max-height:85dvh;padding:24px}.preview-dialog::backdrop{background:#030810c9}.preview-dialog button,.preview-tools{background:#253449;color:#dce5f3;border:1px solid #53647a;border-radius:6px;padding:7px 12px}.preview-dialog .understory{border:0}.preview-dialog .decision-record>div{display:flex;gap:20px}.preview-dialog .decision-record p{margin:5px}.preview-dialog .close-dialog{float:right}.preview-tools{font-size:12px;margin-left:14px}
+
+.value-note{font-size:12px;color:#b7c9e0;white-space:nowrap}.preview-dialog>.dialog-trigger{display:none}.dialog-trigger{background:none;color:inherit;text-align:left;padding:0;font:inherit}
