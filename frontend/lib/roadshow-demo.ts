@@ -6,10 +6,10 @@ export const ROADSHOW_DURATION=60;
 export const ROADSHOW_PHASES=[{at:0,label:'观察变化'},{at:8,label:'安排路径'},{at:22,label:'调整方式'},{at:38,label:'保留空间'},{at:50,label:'减少引导'},{at:60,label:'仪式完成'}];
 export const PERSONAL_REFERENCE={heart_rate:[72,80],resp_rate:[12,16]} as const;
 export const ROADSHOW_CUES=[
- {at:0,text:'让呼吸自然来去，不用急着睡着。'},
+ {at:0,text:'让呼吸自然来去，心情慢慢舒缓。'},
  {at:10,text:'轻轻吸气。'},
  {at:14,text:'缓缓呼气。'},
- {at:22,text:'听一会儿海浪，不用追赶节拍。'},
+ {at:22,text:'听一会儿海浪，跟随自己的节奏。'},
  {at:38,text:'按舒服的节奏，慢慢呼吸。'},
  {at:50,text:'接下来，安心休息吧。'},
 ] as const;
