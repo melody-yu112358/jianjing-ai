@@ -721,3 +721,11 @@ Python覆盖已知波形、噪声/低质量、混合来源、TTL、前后测与r
 
 首轮物理手机反馈确认摄像头/torch/25秒采集可运行，但尚无稳定 accepted 心率。新增拒绝细项、3/5秒预热对照、ROI统计与本地校准 JSON 导出，另提供 `python scripts/replay_ppg.py 文件.json` 离线复现。运动跳变判据收紧，质量与一致性阈值未放宽。
 详见 [PPG_CALIBRATION.md](docs/PPG_CALIBRATION.md)；流程跑通不等于生理测量验证。
+
+## Phase 6 · 决赛演示模式
+
+打开前端 `/roadshow`，或从首页点击“进入决赛演示”。选择今晚状态后一键开始：标准案例60秒；“已经比较困”30秒，省去固定节拍并提前退出。预设模拟信号、解释和动作共用同一时间线，不调用模型、不依赖传感器。
+
+主界面呈现观察、下一步、个人参考比较、状态变化与决策足迹；技术字段/声音设置/未来Sensor入口默认折叠。原首页与后端集成保留，v1.1/v2协议不变。
+
+生产构建：在 frontend 执行 `pnpm build`。测试：`node --experimental-strip-types --test tests/*.test.ts`。完整口播、时间线、截图、易拉宝建议和现场清单见 [ROADSHOW_MATERIAL.md](docs/ROADSHOW_MATERIAL.md)。不包含PPT文件或新部署。
