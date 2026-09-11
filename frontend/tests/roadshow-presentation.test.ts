@@ -33,8 +33,8 @@ test('guidance, explanatory action and spoken switch agree for body tension',()=
  assert.equal(v.frame.message,v.snapshot.decision_trace!.decision.message);
  assert.match(v.next,/自然呼吸/);assert.equal(v.snapshot.decision_trace!.decision.action,'switch_to_natural_breathing');
 });
-test('scene shows distinct gentle transitions for assess, breathing, switch, settling and fade',()=>{
- assert.deepEqual([0,10,22,38,54].map(t=>presentationAt(t).frame.visual.mode),['fold','pulse','storm','ripple','serenity']);
+test('scene keeps the ocean switch and settling gentle without a storm transition',()=>{
+ assert.deepEqual([0,10,22,38,54].map(t=>presentationAt(t).frame.visual.mode),['fold','pulse','ripple','ripple','serenity']);
  assert.equal(presentationAt(10).breath!.progress,0);assert.equal(presentationAt(14).breath!.progress,1);
  assert.equal(presentationAt(22).breath,null);
 });

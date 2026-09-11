@@ -45,7 +45,8 @@ export function FilamentLife(props:{frame:ControlFrame;playing:boolean;gentle:bo
   composer.addPass(new RenderPass(scene,camera));composer.addPass(output);
   const resize=()=>{const w=el.clientWidth,h=el.clientHeight;if(!w||!h)return;renderer.setSize(w,h);composer.setSize(w,h);camera.aspect=w/h;camera.position.z=Math.max(4.7,4.1/camera.aspect);camera.updateProjectionMatrix();};
   const observer=new ResizeObserver(resize);observer.observe(el);resize();
-  let raf=0,last=performance.now(),lastPaint=0,speed=v.speed,lineSpeed=v.line_speed,particleSpeed=v.particle_speed;
+  let raf=0,last=performance.now(),lastPaint=0,speed=v.speed,lineSpeed=v.line_speed,particleSpeed=v.particle_speed,naturalBreathTime=0;
+  const reducedMotion=window.matchMedia('(prefers-reduced-motion: reduce)');
   function tick(now:number){
    raf=requestAnimationFrame(tick);if(now-lastPaint<(compact?32:22))return;lastPaint=now;
    const dt=Math.min((now-last)/1000,.06);last=now;if(document.hidden)return;
@@ -57,7 +58,14 @@ export function FilamentLife(props:{frame:ControlFrame;playing:boolean;gentle:bo
    if(p.playing&&!p.stale){uniforms.uTime.value+=dt*speed*1.5;uniforms.uLineTime.value+=dt*lineSpeed*2.;uniforms.uParticleTime.value+=dt*particleSpeed*1.5;}
    const guided=p.breathProgress!=null;
    if(p.playing&&!p.stale)uniforms.uGuide.value+=((guided?1:0)-uniforms.uGuide.value)*smoothingAlpha(dt,1.2);
-   const breathing=p.breathProgress??.5;if(p.playing&&!p.stale)uniforms.uBreath.value+=(breathing-uniforms.uBreath.value)*smoothingAlpha(dt,.18);
+   // Hold the last guided pose while its influence fades, avoiding a rebound to .5.
+   const breathing=p.breathProgress??uniforms.uBreath.value;if(p.playing&&!p.stale)uniforms.uBreath.value+=(breathing-uniforms.uBreath.value)*smoothingAlpha(dt,.18);
+   if(p.playing&&!p.stale&&p.frame.ritual.stage!=='end'){
+    naturalBreathTime=guided?0:naturalBreathTime+dt;
+    const amplitude=(p.gentle||reducedMotion.matches) ? .01 : .04;
+    const targetScale=guided?1:1+amplitude*Math.sin(naturalBreathTime*Math.PI/3);
+    group.scale.setScalar(group.scale.x+(targetScale-group.scale.x)*smoothingAlpha(dt,.25));
+   }
    const sleep=Math.min(1,Math.max(0,p.sleepProgress??0));uniforms.uSleep.value=sleep===0?0:uniforms.uSleep.value+(sleep-uniforms.uSleep.value)*smoothingAlpha(dt,.12);
    group.rotation.y=Math.sin(uniforms.uTime.value*.055)*.11;
    composer.render();
