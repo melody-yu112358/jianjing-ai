@@ -21,6 +21,6 @@ export function useDemoAudio(running:boolean,elapsed:number,demo=true,timing?:{d
   const stop=useCallback(()=>{ref.current?.stop();narrator.current?.pause();},[]);
   useEffect(()=>{ref.current?.update(running,elapsed,volume,muted);},[running,elapsed,volume,muted]);
   useEffect(()=>{if(!demo)narrator.current?.reset();else narrator.current?.update(running,elapsed,voiceEnabled&&!muted);},[demo,running,elapsed,voiceEnabled,muted]);
-  useEffect(()=>()=>{ref.current?.dispose();ref.current=null;narrator.current?.cancel();narrator.current=null;},[]);
+  useEffect(()=>()=>{ref.current?.dispose();ref.current=null;narrator.current?.cancel();narrator.current=null;},[timing]);
   return {track,status,muted,setMuted,volume,setVolume,start,stop,voiceEnabled,setVoiceEnabled,voiceStatus};
 }

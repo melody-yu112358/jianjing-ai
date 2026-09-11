@@ -34,6 +34,10 @@ class Session:
         self.last_consumed_reading = None
         self.measurements = {"pre": None, "post": None}
         self.last_ppg_result = None
+        self.explanation_trace = None
+        self.explanation_initial = None
+        self.explanation_plan = None
+        self.explanation_history = []
 
     def advance_to(self, second: int, timestamp: float) -> Frame:
         if second < 0:
@@ -83,6 +87,10 @@ class Session:
             fade_start_intensity=ctx.previous_visual_intensity if changed and decision.stage == "fade_out" else ctx.fade_start_intensity,
             previous_visual_intensity=decision.visual_intensity, intervention_started=started,
             previous_action=decision.action, recent_decisions=history)
+        from backend.explainability import record
+        observed = self.last_consumed_reading.signals() if self.last_consumed_reading else self.frame.signals
+        record(self, state, decision, observed,
+               significant=due or changed or decision.action != ctx.previous_action)
         return decision
 
     def stop_for_discomfort(self, timestamp: float) -> Frame:
